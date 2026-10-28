@@ -9,9 +9,9 @@ export default async function Members({ params, searchParams }) {
   const { msg } = await searchParams;
   const { sb, user, team, isManager } = await getTeamCtx(teamId);
 
-  const { data: members } = await sb.from('members').select('*').eq('team_id', team.id).order('created_at');
+  const { data: members } = await sb.from('tp_members').select('*').eq('team_id', team.id).order('created_at');
   const { data: invites } = isManager
-    ? await sb.from('invites').select('*').eq('team_id', team.id).is('accepted_at', null).order('created_at', { ascending: false })
+    ? await sb.from('tp_invites').select('*').eq('team_id', team.id).is('accepted_at', null).order('created_at', { ascending: false })
     : { data: [] };
   const base = await siteUrl();
   const hidden = <input type="hidden" name="teamId" value={team.id} />;

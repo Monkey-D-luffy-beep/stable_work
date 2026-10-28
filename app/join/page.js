@@ -7,7 +7,7 @@ export default async function Join({ searchParams }) {
   const { token, error } = await searchParams;
   await getUser();
   const { data: inv } = token
-    ? await admin().from('invites').select('*, team:teams(*)').eq('token', token).is('accepted_at', null).maybeSingle()
+    ? await admin().from('tp_invites').select('*, team:tp_teams(*)').eq('token', token).is('accepted_at', null).maybeSingle()
     : { data: null };
 
   return (

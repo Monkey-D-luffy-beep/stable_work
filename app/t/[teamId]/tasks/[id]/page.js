@@ -19,11 +19,11 @@ export default async function TaskPage({ params }) {
   const { teamId, id } = await params;
   const { sb, user, team, isManager } = await getTeamCtx(teamId);
 
-  const { data: t } = await sb.from('tasks').select('*').eq('id', id).eq('team_id', team.id).maybeSingle();
+  const { data: t } = await sb.from('tp_tasks').select('*').eq('id', id).eq('team_id', team.id).maybeSingle();
   if (!t) notFound();
   const [{ data: events }, { data: members }] = await Promise.all([
-    sb.from('task_events').select('*').eq('task_id', id).order('created_at', { ascending: false }),
-    sb.from('members').select('user_id, name, email').eq('team_id', team.id),
+    sb.from('tp_task_events').select('*').eq('task_id', id).order('created_at', { ascending: false }),
+    sb.from('tp_members').select('user_id, name, email').eq('team_id', team.id),
   ]);
 
   const hidden = (<><input type="hidden" name="teamId" value={team.id} /><input type="hidden" name="id" value={t.id} /></>);

@@ -56,12 +56,12 @@ export async function createTeam(fd) {
   const name = str(fd, 'name');
   if (!name) redirect('/teams/new?error=Give+the+team+a+name');
   const db = admin();
-  const { data: team, error } = await db.from('teams')
+  const { data: team, error } = await db.from('tp_teams')
     .insert({ name, description: str(fd, 'description') || null, created_by: user.id }).select().single();
   if (error) redirect(`/teams/new?error=${enc(error.message)}`);
   const pic = await saveAvatar(team.id, fd);
-  if (pic.avatar) await db.from('teams').update({ avatar: pic.avatar }).eq('id', team.id);
-  await db.from('members').insert({
+  if (pic.avatar) await db.from('tp_teams').update({ avatar: pic.avatar }).eq('id', team.id);
+  await db.from('tp_members').insert({
     team_id: team.id, user_id: user.id, role: 'manager', email: user.email, name: user.email.split('@')[0],
   });
   redirect(`/t/${team.id}`);
@@ -74,7 +74,7 @@ export async function updateTeam(fd) {
   const pic = await saveAvatar(ctx.team.id, fd);
   if (pic.error) redirect(`/t/${ctx.team.id}/members?msg=${enc(pic.error)}`);
   if (pic.avatar) patch.avatar = pic.avatar;
-  await admin().from('teams').update(patch).eq('id', ctx.team.id);
+  await admin().from('tp_teams').update(patch).eq('id', ctx.team.id);
   revalidatePath(`/t/${ctx.team.id}`, 'layout');
   redirect(`/t/${ctx.team.id}/members?msg=Team+updated`);
 }
@@ -85,7 +85,7 @@ export async function inviteMembers(fd) {
   const role = str(fd, 'role') === 'manager' ? 'manager' : 'member';
   const emails = [...new Set(str(fd, 'emails').toLowerCase().split(/[\s,;]+/).filter((e) => /^\S+@\S+\.\S+$/.test(e)))];
   if (!emails.length) redirect(`/t/${ctx.team.id}/members?msg=Enter+at+least+one+valid+email`);
-  const { data: rows } = await ctx.sb.from('invites')
+  const { data: rows } = await ctx.sb.from('tp_invites')
     .insert(emails.map((email) => ({ team_id: ctx.team.id, email, role }))).select('email, token');
   const base = await siteUrl();
   let mailed = 0;
@@ -105,14 +105,14 @@ export async function inviteMembers(fd) {
 export async function acceptInvite(fd) {
   const { user } = await getUser();
   const db = admin();
-  const { data: inv } = await db.from('invites').select('*').eq('token', str(fd, 'token')).is('accepted_at', null).maybeSingle();
+  const { data: inv } = await db.from('tp_invites').select('*').eq('token', str(fd, 'token')).is('accepted_at', null).maybeSingle();
   if (!inv) redirect('/?msg=Invite+not+found+or+already+used');
   if (inv.email.toLowerCase() !== user.email.toLowerCase())
     redirect(`/join?token=${inv.token}&error=${enc(`This invite is for ${inv.email}. Sign in with that email.`)}`);
-  await db.from('members').upsert({
+  await db.from('tp_members').upsert({
     team_id: inv.team_id, user_id: user.id, role: inv.role, email: user.email, name: user.email.split('@')[0],
   });
-  await db.from('invites').update({ accepted_at: new Date().toISOString() }).eq('id', inv.id);
+  await db.from('tp_invites').update({ accepted_at: new Date().toISOString() }).eq('id', inv.id);
   redirect(`/t/${inv.team_id}`);
 }
 
@@ -120,14 +120,14 @@ export async function removeMember(fd) {
   const ctx = await getTeamCtx(str(fd, 'teamId'));
   const uid = str(fd, 'userId');
   if (!ctx.isManager || uid === ctx.user.id) return;
-  await admin().from('members').delete().eq('team_id', ctx.team.id).eq('user_id', uid);
+  await admin().from('tp_members').delete().eq('team_id', ctx.team.id).eq('user_id', uid);
   revalidatePath(`/t/${ctx.team.id}/members`);
 }
 
 export async function revokeInvite(fd) {
   const ctx = await getTeamCtx(str(fd, 'teamId'));
   if (!ctx.isManager) return;
-  await ctx.sb.from('invites').delete().eq('id', str(fd, 'id'));
+  await ctx.sb.from('tp_invites').delete().eq('id', str(fd, 'id'));
   revalidatePath(`/t/${ctx.team.id}/members`);
 }
 
@@ -142,13 +142,13 @@ export async function sendReportNow(fd) {
 /* ---------- tasks ---------- */
 
 async function log(ctx, taskId, type, detail) {
-  await ctx.sb.from('task_events').insert({
+  await ctx.sb.from('tp_task_events').insert({
     task_id: taskId, team_id: ctx.team.id, actor_id: ctx.user.id, actor_name: ctx.name, type, detail: detail || null,
   });
 }
 
 async function memberList(ctx) {
-  const { data } = await ctx.sb.from('members').select('user_id, name, email, role').eq('team_id', ctx.team.id);
+  const { data } = await ctx.sb.from('tp_members').select('user_id, name, email, role').eq('team_id', ctx.team.id);
   return data || [];
 }
 
@@ -163,7 +163,7 @@ export async function createTask(fd) {
   const ctx = await getTeamCtx(str(fd, 'teamId'));
   const title = str(fd, 'title');
   if (!title) return;
-  const { data: t } = await ctx.sb.from('tasks').insert({
+  const { data: t } = await ctx.sb.from('tp_tasks').insert({
     team_id: ctx.team.id, title, notes: str(fd, 'notes') || null,
     urgency: str(fd, 'urgency') || 'medium', deadline: str(fd, 'deadline') || null,
     created_by: ctx.user.id, ...resolveAssignee(ctx, str(fd, 'assignee')),
@@ -178,7 +178,7 @@ export async function createTask(fd) {
 export async function updateTask(fd) {
   const ctx = await getTeamCtx(str(fd, 'teamId'));
   const id = str(fd, 'id');
-  const { data: old } = await ctx.sb.from('tasks').select('*').eq('id', id).single();
+  const { data: old } = await ctx.sb.from('tp_tasks').select('*').eq('id', id).single();
   if (!old) return;
   const patch = {
     title: str(fd, 'title') || old.title,
@@ -201,7 +201,7 @@ export async function updateTask(fd) {
   if (ctx.isManager && who({ ...old }) !== who(patch)) changes.push(`assigned ${who(old)} → ${who(patch)}`);
   if ((patch.notes || '') !== (old.notes || '')) changes.push('notes edited');
 
-  await ctx.sb.from('tasks').update(patch).eq('id', id);
+  await ctx.sb.from('tp_tasks').update(patch).eq('id', id);
   if (changes.length) await log(ctx, id, 'updated', changes.join('; '));
   revalidatePath(`/t/${ctx.team.id}`, 'layout');
   redirect(`/t/${ctx.team.id}/tasks/${id}`);
@@ -211,7 +211,7 @@ export async function requestReview(fd) {
   const ctx = await getTeamCtx(str(fd, 'teamId'));
   const id = str(fd, 'id');
   const comment = str(fd, 'comment');
-  const { data: t } = await ctx.sb.from('tasks').update({
+  const { data: t } = await ctx.sb.from('tp_tasks').update({
     status: 'review', review_requested_at: new Date().toISOString(), updated_at: new Date().toISOString(),
   }).eq('id', id).select().single();
   await log(ctx, id, 'review_requested', comment);
@@ -235,7 +235,7 @@ export async function reviewDecision(fd) {
   const approve = str(fd, 'decision') === 'approve';
   const comment = str(fd, 'comment');
   const now = new Date().toISOString();
-  const { data: t } = await ctx.sb.from('tasks').update(
+  const { data: t } = await ctx.sb.from('tp_tasks').update(
     approve ? { status: 'done', completed_at: now, updated_at: now } : { status: 'changes_requested', completed_at: null, updated_at: now }
   ).eq('id', id).select().single();
   await log(ctx, id, approve ? 'review_approved' : 'changes_requested', comment);
@@ -255,7 +255,7 @@ export async function setFollowUp(fd) {
   const id = str(fd, 'id');
   const date = str(fd, 'date') || null;
   const note = str(fd, 'note') || null;
-  await ctx.sb.from('tasks').update({ follow_up_date: date, follow_up_note: date ? note : null }).eq('id', id);
+  await ctx.sb.from('tp_tasks').update({ follow_up_date: date, follow_up_note: date ? note : null }).eq('id', id);
   await log(ctx, id, date ? 'follow_up_set' : 'follow_up_cleared', date ? `${date}${note ? ` — ${note}` : ''}` : '');
   revalidatePath(`/t/${ctx.team.id}`, 'layout');
   redirect(`/t/${ctx.team.id}/tasks/${id}`);
@@ -272,6 +272,6 @@ export async function addNote(fd) {
 export async function deleteTask(fd) {
   const ctx = await getTeamCtx(str(fd, 'teamId'));
   if (!ctx.isManager) return;
-  await ctx.sb.from('tasks').delete().eq('id', str(fd, 'id'));
+  await ctx.sb.from('tp_tasks').delete().eq('id', str(fd, 'id'));
   redirect(`/t/${ctx.team.id}`);
 }

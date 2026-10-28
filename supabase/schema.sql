@@ -1,6 +1,6 @@
--- Tiger Projects schema. Run once in the Supabase SQL editor.
+-- Tiger Projects schema. Run once in the Supabase SQL editor. All objects are prefixed tp_ so it is safe in a shared project.
 
-create table if not exists teams (
+create table if not exists tp_teams (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text,
@@ -9,8 +9,8 @@ create table if not exists teams (
   created_at timestamptz default now()
 );
 
-create table if not exists members (
-  team_id uuid references teams on delete cascade,
+create table if not exists tp_members (
+  team_id uuid references tp_teams on delete cascade,
   user_id uuid references auth.users on delete cascade,
   role text not null default 'member' check (role in ('manager','member')),
   email text,
@@ -19,9 +19,9 @@ create table if not exists members (
   primary key (team_id, user_id)
 );
 
-create table if not exists invites (
+create table if not exists tp_invites (
   id uuid primary key default gen_random_uuid(),
-  team_id uuid references teams on delete cascade,
+  team_id uuid references tp_teams on delete cascade,
   email text not null,
   role text not null default 'member' check (role in ('manager','member')),
   token text unique not null default encode(gen_random_bytes(16), 'hex'),
@@ -29,9 +29,9 @@ create table if not exists invites (
   created_at timestamptz default now()
 );
 
-create table if not exists tasks (
+create table if not exists tp_tasks (
   id uuid primary key default gen_random_uuid(),
-  team_id uuid not null references teams on delete cascade,
+  team_id uuid not null references tp_teams on delete cascade,
   title text not null,
   notes text,
   urgency text not null default 'medium' check (urgency in ('low','medium','high','urgent')),
@@ -48,10 +48,10 @@ create table if not exists tasks (
   updated_at timestamptz default now()
 );
 
-create table if not exists task_events (
+create table if not exists tp_task_events (
   id bigint generated always as identity primary key,
-  task_id uuid references tasks on delete cascade,
-  team_id uuid references teams on delete cascade,
+  task_id uuid references tp_tasks on delete cascade,
+  team_id uuid references tp_teams on delete cascade,
   actor_id uuid,
   actor_name text,
   type text not null,
@@ -59,49 +59,49 @@ create table if not exists task_events (
   created_at timestamptz default now()
 );
 
-create index if not exists tasks_team_idx on tasks(team_id);
-create index if not exists events_task_idx on task_events(task_id, created_at desc);
+create index if not exists tp_tasks_team_idx on tp_tasks(team_id);
+create index if not exists tp_events_task_idx on tp_task_events(task_id, created_at desc);
 
-create or replace function is_member(t uuid) returns boolean
+create or replace function tp_is_member(t uuid) returns boolean
 language sql security definer stable set search_path = public as
-$$ select exists(select 1 from members where team_id = t and user_id = auth.uid()) $$;
+$$ select exists(select 1 from tp_members where team_id = t and user_id = auth.uid()) $$;
 
-create or replace function is_manager(t uuid) returns boolean
+create or replace function tp_is_manager(t uuid) returns boolean
 language sql security definer stable set search_path = public as
-$$ select exists(select 1 from members where team_id = t and user_id = auth.uid() and role = 'manager') $$;
+$$ select exists(select 1 from tp_members where team_id = t and user_id = auth.uid() and role = 'manager') $$;
 
-alter table teams enable row level security;
-alter table members enable row level security;
-alter table invites enable row level security;
-alter table tasks enable row level security;
-alter table task_events enable row level security;
+alter table tp_teams enable row level security;
+alter table tp_members enable row level security;
+alter table tp_invites enable row level security;
+alter table tp_tasks enable row level security;
+alter table tp_task_events enable row level security;
 
 -- Team creation, joining and removal go through the server (service role).
-create policy teams_select on teams for select using (is_member(id));
-create policy teams_update on teams for update using (is_manager(id));
+create policy tp_teams_select on tp_teams for select using (tp_is_member(id));
+create policy tp_teams_update on tp_teams for update using (tp_is_manager(id));
 
-create policy members_select on members for select using (is_member(team_id));
+create policy tp_members_select on tp_members for select using (tp_is_member(team_id));
 
-create policy invites_select on invites for select using (is_manager(team_id));
-create policy invites_insert on invites for insert with check (is_manager(team_id));
-create policy invites_delete on invites for delete using (is_manager(team_id));
+create policy tp_invites_select on tp_invites for select using (tp_is_manager(team_id));
+create policy tp_invites_insert on tp_invites for insert with check (tp_is_manager(team_id));
+create policy tp_invites_delete on tp_invites for delete using (tp_is_manager(team_id));
 
 -- Managers see everything; members see tasks assigned to them, created by them, or given to the whole team.
-create policy tasks_select on tasks for select using (
-  is_manager(team_id)
-  or (is_member(team_id) and (assignee_id = auth.uid() or created_by = auth.uid() or for_team))
+create policy tp_tasks_select on tp_tasks for select using (
+  tp_is_manager(team_id)
+  or (tp_is_member(team_id) and (assignee_id = auth.uid() or created_by = auth.uid() or for_team))
 );
-create policy tasks_insert on tasks for insert with check (is_member(team_id) and created_by = auth.uid());
-create policy tasks_update on tasks for update using (
-  is_manager(team_id)
-  or (is_member(team_id) and (assignee_id = auth.uid() or created_by = auth.uid() or for_team))
+create policy tp_tasks_insert on tp_tasks for insert with check (tp_is_member(team_id) and created_by = auth.uid());
+create policy tp_tasks_update on tp_tasks for update using (
+  tp_is_manager(team_id)
+  or (tp_is_member(team_id) and (assignee_id = auth.uid() or created_by = auth.uid() or for_team))
 );
-create policy tasks_delete on tasks for delete using (is_manager(team_id));
+create policy tp_tasks_delete on tp_tasks for delete using (tp_is_manager(team_id));
 
-create policy events_select on task_events for select using (
-  exists (select 1 from tasks t where t.id = task_id)
+create policy tp_events_select on tp_task_events for select using (
+  exists (select 1 from tp_tasks t where t.id = task_id)
 );
-create policy events_insert on task_events for insert with check (is_member(team_id) and actor_id = auth.uid());
+create policy tp_events_insert on tp_task_events for insert with check (tp_is_member(team_id) and actor_id = auth.uid());
 
 -- Public bucket for uploaded team pictures.
 insert into storage.buckets (id, name, public) values ('team-pictures', 'team-pictures', true)

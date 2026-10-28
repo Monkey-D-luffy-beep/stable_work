@@ -9,8 +9,8 @@ export default async function Tasks({ params, searchParams }) {
   const { sb, user, team, isManager } = await getTeamCtx(teamId);
 
   const [{ data: all }, { data: members }] = await Promise.all([
-    sb.from('tasks').select('*').eq('team_id', team.id),
-    sb.from('members').select('user_id, name, email, role').eq('team_id', team.id),
+    sb.from('tp_tasks').select('*').eq('team_id', team.id),
+    sb.from('tp_members').select('user_id, name, email, role').eq('team_id', team.id),
   ]);
 
   let tasks = all || [];
