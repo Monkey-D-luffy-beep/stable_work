@@ -1,19 +1,24 @@
 import Link from 'next/link';
-import { getMyTeams, getUser } from '@/lib/ctx';
+import { supabaseServer } from '@/lib/supabase/server';
+import { getMyTeams } from '@/lib/ctx';
 import TeamAvatar from '@/components/TeamAvatar';
+import Landing from '@/components/Landing';
+import SubmitButton from '@/components/SubmitButton';
 import { logout } from './actions';
 
 export default async function Home({ searchParams }) {
   const { msg } = await searchParams;
-  const { user } = await getUser();
-  const teams = await getMyTeams();
+  const sb = await supabaseServer();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return <Landing />;
 
+  const teams = await getMyTeams();
   return (
     <main className="wrap">
       <header className="home-head">
         <img src="/logo.png" alt="Tiger Logistics" className="auth-logo" />
         <span className="sub">{user.email}</span>
-        <form action={logout}><button className="btn">Sign out</button></form>
+        <form action={logout}><SubmitButton className="btn">Sign out</SubmitButton></form>
       </header>
       {msg && <p className="notice">{msg}</p>}
       <div className="home-title">

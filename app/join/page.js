@@ -1,3 +1,4 @@
+import SubmitButton from "@/components/SubmitButton";
 import { admin } from '@/lib/admin';
 import { getUser } from '@/lib/ctx';
 import TeamAvatar from '@/components/TeamAvatar';
@@ -21,7 +22,7 @@ export default async function Join({ searchParams }) {
             {error && <p className="error">{error}</p>}
             <form action={acceptInvite}>
               <input type="hidden" name="token" value={token} />
-              <button className="btn primary">Accept invite</button>
+              <SubmitButton className="btn primary">Accept invite</SubmitButton>
             </form>
           </>
         ) : (

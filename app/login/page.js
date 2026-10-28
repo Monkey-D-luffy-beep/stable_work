@@ -1,3 +1,4 @@
+import SubmitButton from "@/components/SubmitButton";
 import { login } from '../actions';
 
 export default async function Login({ searchParams }) {
@@ -16,7 +17,7 @@ export default async function Login({ searchParams }) {
             <form action={login} className="stack">
               <input type="hidden" name="next" value={next || '/'} />
               <input name="email" type="email" placeholder="you@company.com" required autoFocus />
-              <button className="btn primary">Email me a link</button>
+              <SubmitButton className="btn primary">Email me a link</SubmitButton>
             </form>
           </>
         )}

@@ -1,8 +1,9 @@
+import SubmitButton from "@/components/SubmitButton";
 import { getTeamCtx } from '@/lib/ctx';
 import { siteUrl } from '@/lib/site';
 import TeamAvatar from '@/components/TeamAvatar';
 import AvatarPicker from '@/components/AvatarPicker';
-import { updateTeam, inviteMembers, removeMember, revokeInvite, sendReportNow } from '../../../actions';
+import { updateTeam, inviteMembers, removeMember, revokeInvite, sendReportNow, deleteTeam } from '../../../actions';
 
 export default async function Members({ params, searchParams }) {
   const { teamId } = await params;
@@ -36,7 +37,7 @@ export default async function Members({ params, searchParams }) {
                 <span className="t">{m.name || m.email}<div className="sub">{m.email}</div></span>
                 <span className={`tag ${m.role}`}>{m.role}</span>
                 {isManager && m.user_id !== user.id && (
-                  <form action={removeMember}>{hidden}<input type="hidden" name="userId" value={m.user_id} /><button className="btn danger sm">Remove</button></form>
+                  <form action={removeMember}>{hidden}<input type="hidden" name="userId" value={m.user_id} /><SubmitButton className="btn danger sm">Remove</SubmitButton></form>
                 )}
               </div>
             ))}
@@ -50,7 +51,7 @@ export default async function Members({ params, searchParams }) {
                 <div key={i.id} className="mini">
                   <span className="t">{i.email}<div className="sub link">{base}/join?token={i.token}</div></span>
                   <span className={`tag ${i.role}`}>{i.role}</span>
-                  <form action={revokeInvite}>{hidden}<input type="hidden" name="id" value={i.id} /><button className="btn sm">Revoke</button></form>
+                  <form action={revokeInvite}>{hidden}<input type="hidden" name="id" value={i.id} /><SubmitButton className="btn sm">Revoke</SubmitButton></form>
                 </div>
               ))}
             </section>
@@ -59,14 +60,14 @@ export default async function Members({ params, searchParams }) {
 
         {isManager && (
           <div className="stack">
-            <form action={inviteMembers} className="panel stack">
+            <form action={inviteMembers} id="invite" className="panel stack">
               {hidden}
               <h3>Invite people</h3>
               <textarea name="emails" rows="3" placeholder="Emails, separated by commas or new lines" required />
               <label>Role
                 <select name="role"><option value="member">Member</option><option value="manager">Manager</option></select>
               </label>
-              <button className="btn primary">Send invites</button>
+              <SubmitButton className="btn primary">Send invites</SubmitButton>
             </form>
 
             <form action={sendReportNow} className="panel stack">
@@ -74,8 +75,8 @@ export default async function Members({ params, searchParams }) {
               <h3>Task reports</h3>
               <p className="sub">Reports go out automatically every Monday (weekly) and on the 1st (monthly). Managers get the full team; members get their own tasks. Send one now:</p>
               <div className="actions">
-                <button name="kind" value="weekly" className="btn">Send weekly report</button>
-                <button name="kind" value="monthly" className="btn">Send last month's report</button>
+                <SubmitButton name="kind" value="weekly" className="btn">Send weekly report</SubmitButton>
+                <SubmitButton name="kind" value="monthly" className="btn">Send last month's report</SubmitButton>
               </div>
             </form>
 
@@ -85,7 +86,15 @@ export default async function Members({ params, searchParams }) {
               <label>Name<input name="name" defaultValue={team.name} required /></label>
               <label>Description<input name="description" defaultValue={team.description || ''} /></label>
               <AvatarPicker current={team.avatar} />
-              <button className="btn">Save settings</button>
+              <SubmitButton className="btn">Save settings</SubmitButton>
+            </form>
+
+            <form action={deleteTeam} className="panel stack danger-zone">
+              {hidden}
+              <h3>Delete team</h3>
+              <p className="sub">Permanently deletes this team, its members, all tasks and their history. This can't be undone.</p>
+              <label>Type <b>{team.name}</b> to confirm<input name="confirm" autoComplete="off" required /></label>
+              <SubmitButton className="btn danger">Delete team</SubmitButton>
             </form>
           </div>
         )}

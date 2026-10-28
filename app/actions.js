@@ -51,20 +51,52 @@ async function saveAvatar(teamId, fd) {
   return { avatar: PRESETS.some((p) => p.id === preset) ? preset : undefined };
 }
 
+const parseEmails = (raw) => [...new Set(raw.toLowerCase().split(/[\s,;]+/).filter((e) => /^\S+@\S+\.\S+$/.test(e)))];
+
+// Creates invites (skipping people already in the team or already invited) and emails each one.
+async function sendInvites(db, team, inviterName, emails, role) {
+  if (!emails.length) return { created: 0, mailed: 0 };
+  const [{ data: members }, { data: pending }] = await Promise.all([
+    db.from('tp_members').select('email').eq('team_id', team.id),
+    db.from('tp_invites').select('email').eq('team_id', team.id).is('accepted_at', null),
+  ]);
+  const skip = new Set([...(members || []), ...(pending || [])].map((r) => r.email?.toLowerCase()));
+  const fresh = emails.filter((e) => !skip.has(e));
+  if (!fresh.length) return { created: 0, mailed: 0 };
+  const { data: rows } = await db.from('tp_invites')
+    .insert(fresh.map((email) => ({ team_id: team.id, email, role }))).select('email, token');
+  const base = await siteUrl();
+  const sent = await Promise.all((rows || []).map((r) => sendMail({
+    to: r.email,
+    subject: `${inviterName} invited you to ${team.name} on Tiger Projects`,
+    html: `<p>${inviterName} invited you to join <b>${team.name}</b> as ${role}.</p><p><a href="${base}/join?token=${r.token}">Accept invite</a></p>`,
+  })));
+  return { created: rows?.length || 0, mailed: sent.filter((s) => s.ok).length };
+}
+
 export async function createTeam(fd) {
   const { user } = await getUser();
   const name = str(fd, 'name');
   if (!name) redirect('/teams/new?error=Give+the+team+a+name');
   const db = admin();
+
+  // A double-click must not create a second team: reuse one made in the last 30 seconds.
+  const { data: recent } = await db.from('tp_teams').select('id').eq('created_by', user.id).eq('name', name)
+    .gte('created_at', new Date(Date.now() - 30000).toISOString()).limit(1);
+  if (recent?.length) redirect(`/t/${recent[0].id}`);
+
   const { data: team, error } = await db.from('tp_teams')
     .insert({ name, description: str(fd, 'description') || null, created_by: user.id }).select().single();
   if (error) redirect(`/teams/new?error=${enc(error.message)}`);
   const pic = await saveAvatar(team.id, fd);
-  if (pic.avatar) await db.from('tp_teams').update({ avatar: pic.avatar }).eq('id', team.id);
-  await db.from('tp_members').insert({
-    team_id: team.id, user_id: user.id, role: 'manager', email: user.email, name: user.email.split('@')[0],
-  });
-  redirect(`/t/${team.id}`);
+  await Promise.all([
+    pic.avatar ? db.from('tp_teams').update({ avatar: pic.avatar }).eq('id', team.id) : null,
+    db.from('tp_members').insert({
+      team_id: team.id, user_id: user.id, role: 'manager', email: user.email, name: user.email.split('@')[0],
+    }),
+  ]);
+  const inv = await sendInvites(db, team, user.email.split('@')[0], parseEmails(str(fd, 'emails')), 'member');
+  redirect(`/t/${team.id}/members?msg=${enc(inv.created ? `Team created. ${inv.created} invite(s) sent.` : 'Team created. Invite your people below.')}`);
 }
 
 export async function updateTeam(fd) {
@@ -83,23 +115,12 @@ export async function inviteMembers(fd) {
   const ctx = await getTeamCtx(str(fd, 'teamId'));
   if (!ctx.isManager) return;
   const role = str(fd, 'role') === 'manager' ? 'manager' : 'member';
-  const emails = [...new Set(str(fd, 'emails').toLowerCase().split(/[\s,;]+/).filter((e) => /^\S+@\S+\.\S+$/.test(e)))];
+  const emails = parseEmails(str(fd, 'emails'));
   if (!emails.length) redirect(`/t/${ctx.team.id}/members?msg=Enter+at+least+one+valid+email`);
-  const { data: rows } = await ctx.sb.from('tp_invites')
-    .insert(emails.map((email) => ({ team_id: ctx.team.id, email, role }))).select('email, token');
-  const base = await siteUrl();
-  let mailed = 0;
-  for (const r of rows || []) {
-    const link = `${base}/join?token=${r.token}`;
-    const res = await sendMail({
-      to: r.email,
-      subject: `${ctx.name} invited you to ${ctx.team.name} on Tiger Projects`,
-      html: `<p>${ctx.name} invited you to join <b>${ctx.team.name}</b> as ${role}.</p><p><a href="${link}">Accept invite</a></p>`,
-    });
-    if (res.ok) mailed++;
-  }
+  const { created, mailed } = await sendInvites(admin(), ctx.team, ctx.name, emails, role);
   revalidatePath(`/t/${ctx.team.id}/members`);
-  redirect(`/t/${ctx.team.id}/members?msg=${enc(`${rows?.length || 0} invite(s) created, ${mailed} emailed. Pending links are listed below.`)}`);
+  const note = created ? `${created} invite(s) created, ${mailed} emailed. Pending links are listed below.` : 'Everyone you entered is already in the team or invited.';
+  redirect(`/t/${ctx.team.id}/members?msg=${enc(note)}`);
 }
 
 export async function acceptInvite(fd) {
@@ -114,6 +135,20 @@ export async function acceptInvite(fd) {
   });
   await db.from('tp_invites').update({ accepted_at: new Date().toISOString() }).eq('id', inv.id);
   redirect(`/t/${inv.team_id}`);
+}
+
+// Permanently deletes the team with its members, invites, tasks and history (all cascade).
+export async function deleteTeam(fd) {
+  const ctx = await getTeamCtx(str(fd, 'teamId'));
+  if (!ctx.isManager) return;
+  if (str(fd, 'confirm') !== ctx.team.name)
+    redirect(`/t/${ctx.team.id}/members?msg=${enc('Team not deleted: the name you typed did not match')}`);
+  const db = admin();
+  const { data: files } = await db.storage.from('team-pictures').list(ctx.team.id);
+  if (files?.length) await db.storage.from('team-pictures').remove(files.map((f) => `${ctx.team.id}/${f.name}`));
+  const { error } = await db.from('tp_teams').delete().eq('id', ctx.team.id);
+  if (error) redirect(`/t/${ctx.team.id}/members?msg=${enc(error.message)}`);
+  redirect(`/?msg=${enc(`Team "${ctx.team.name}" deleted`)}`);
 }
 
 export async function removeMember(fd) {
@@ -163,6 +198,11 @@ export async function createTask(fd) {
   const ctx = await getTeamCtx(str(fd, 'teamId'));
   const title = str(fd, 'title');
   if (!title) return;
+  // Ignore an identical task created moments ago (double-click / retry).
+  const { data: dupe } = await ctx.sb.from('tp_tasks').select('id').eq('team_id', ctx.team.id)
+    .eq('created_by', ctx.user.id).eq('title', title)
+    .gte('created_at', new Date(Date.now() - 15000).toISOString()).limit(1);
+  if (dupe?.length) return;
   const { data: t } = await ctx.sb.from('tp_tasks').insert({
     team_id: ctx.team.id, title, notes: str(fd, 'notes') || null,
     urgency: str(fd, 'urgency') || 'medium', deadline: str(fd, 'deadline') || null,
@@ -273,5 +313,6 @@ export async function deleteTask(fd) {
   const ctx = await getTeamCtx(str(fd, 'teamId'));
   if (!ctx.isManager) return;
   await ctx.sb.from('tp_tasks').delete().eq('id', str(fd, 'id'));
+  if (str(fd, 'stay')) return revalidatePath(`/t/${ctx.team.id}`);
   redirect(`/t/${ctx.team.id}`);
 }

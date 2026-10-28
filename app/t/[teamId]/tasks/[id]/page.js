@@ -1,3 +1,4 @@
+import SubmitButton from "@/components/SubmitButton";
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getTeamCtx } from '@/lib/ctx';
@@ -70,7 +71,7 @@ export default async function TaskPage({ params }) {
                 </label>
               )}
             </div>
-            <button className="btn primary">Save changes</button>
+            <SubmitButton className="btn primary">Save changes</SubmitButton>
           </form>
 
           {canRequestReview && (
@@ -78,7 +79,7 @@ export default async function TaskPage({ params }) {
               {hidden}
               <h3>Ready for review?</h3>
               <textarea name="comment" rows="2" placeholder="Anything the reviewer should know (optional)" />
-              <button className="btn">Request review</button>
+              <SubmitButton className="btn">Request review</SubmitButton>
             </form>
           )}
           {t.status === 'review' && isManager && (
@@ -87,8 +88,8 @@ export default async function TaskPage({ params }) {
               <h3>Review this task</h3>
               <textarea name="comment" rows="2" placeholder="Feedback (optional)" />
               <div className="actions">
-                <button name="decision" value="approve" className="btn primary">Approve & mark done</button>
-                <button name="decision" value="changes" className="btn">Request changes</button>
+                <SubmitButton name="decision" value="approve" className="btn primary">Approve & mark done</SubmitButton>
+                <SubmitButton name="decision" value="changes" className="btn">Request changes</SubmitButton>
               </div>
             </form>
           )}
@@ -103,12 +104,12 @@ export default async function TaskPage({ params }) {
               <label>Date<input type="date" name="date" defaultValue={t.follow_up_date || ''} /></label>
               <label>Reminder note<input name="note" defaultValue={t.follow_up_note || ''} /></label>
             </div>
-            <button className="btn">Save follow-up</button>
+            <SubmitButton className="btn">Save follow-up</SubmitButton>
             <span className="sub">Leave the date empty to clear it.</span>
           </form>
 
           {isManager && (
-            <form action={deleteTask}>{hidden}<button className="btn danger">Delete task</button></form>
+            <form action={deleteTask}>{hidden}<SubmitButton className="btn danger">Delete task</SubmitButton></form>
           )}
         </div>
 
@@ -117,7 +118,7 @@ export default async function TaskPage({ params }) {
             {hidden}
             <h3>Add a note</h3>
             <textarea name="text" rows="3" placeholder="Update, question, or comment…" required />
-            <button className="btn primary">Post note</button>
+            <SubmitButton className="btn primary">Post note</SubmitButton>
           </form>
 
           <section className="panel">

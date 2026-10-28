@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getTeamCtx } from '@/lib/ctx';
-import { STATUS, fmtDate, isOverdue, nameOf, sortTasks, today } from '@/lib/util';
-import { createTask } from '../../actions';
+import { isOverdue, nameOf, sortTasks, today } from '@/lib/util';
+import TaskBoard from '@/components/TaskBoard';
 
 export default async function Tasks({ params, searchParams }) {
   const { teamId } = await params;
@@ -22,49 +22,13 @@ export default async function Tasks({ params, searchParams }) {
   const q = (o) => `?${new URLSearchParams({ view, show, ...o })}`;
   const assigneeLabel = (t) => (t.for_team ? 'Whole team' : nameOf(members || [], t.assignee_id));
 
-  return (
+  const rows = shown.map((t) => ({
+    id: t.id, title: t.title, urgency: t.urgency, deadline: t.deadline, status: t.status,
+    follow_up_date: t.follow_up_date, assigneeLabel: assigneeLabel(t), overdue: isOverdue(t),
+  }));
+
+  const above = (
     <>
-      <header className="topbar">
-        <div>
-          <h1>{team.name}</h1>
-          <p className="sub">{isManager ? 'Manager view · you see every task in this team' : 'Your tasks and tasks given to the whole team'}</p>
-        </div>
-      </header>
-
-      <div className="stats">
-        <div className="stat hero"><div className="label">Open</div><div className="num">{open.length}</div></div>
-        <div className="stat"><div className="label">Overdue</div><div className="num" style={{ color: open.some(isOverdue) ? 'var(--red)' : undefined }}>{open.filter(isOverdue).length}</div></div>
-        <div className="stat"><div className="label">{isManager ? 'To review' : 'In review'}</div><div className="num">{toReview.length}</div></div>
-        <div className="stat"><div className="label">Follow-ups due</div><div className="num">{followUps.length}</div></div>
-      </div>
-
-      <details className="panel add" open={!all?.length}>
-        <summary>+ New task</summary>
-        <form action={createTask} className="stack">
-          <input type="hidden" name="teamId" value={team.id} />
-          <input name="title" placeholder="What needs doing?" required />
-          <div className="row">
-            <label>Urgency
-              <select name="urgency" defaultValue="medium">
-                <option value="low">Low</option><option value="medium">Medium</option>
-                <option value="high">High</option><option value="urgent">Urgent</option>
-              </select>
-            </label>
-            <label>Deadline <span className="sub">(optional)</span><input type="date" name="deadline" /></label>
-            {isManager && (
-              <label>Assign to
-                <select name="assignee" defaultValue="team">
-                  <option value="team">Whole team</option>
-                  {(members || []).map((m) => <option key={m.user_id} value={m.user_id}>{m.name || m.email}{m.user_id === user.id ? ' (me)' : ''}</option>)}
-                </select>
-              </label>
-            )}
-          </div>
-          <textarea name="notes" rows="2" placeholder="Notes (optional)" />
-          <button className="btn primary">Add task</button>
-        </form>
-      </details>
-
       {isManager && toReview.length > 0 && (
         <section className="panel attention">
           <h3>Waiting for your review</h3>
@@ -75,7 +39,6 @@ export default async function Tasks({ params, searchParams }) {
           ))}
         </section>
       )}
-
       <div className="filters">
         {isManager && (<>
           <Link className={`chip ${view === 'all' ? 'on' : ''}`} href={q({ view: 'all' })}>Whole team</Link>
@@ -86,26 +49,30 @@ export default async function Tasks({ params, searchParams }) {
           <Link key={k} className={`chip ${show === k ? 'on' : ''}`} href={q({ show: k })}>{l}</Link>
         ))}
       </div>
+    </>
+  );
 
-      {shown.length === 0 ? (
-        <div className="panel empty">No tasks here yet.</div>
-      ) : (
-        <table>
-          <thead><tr><th>Task</th><th>Urgency</th><th>Deadline</th><th>Assigned to</th><th>Status</th></tr></thead>
-          <tbody>
-            {shown.map((t) => (
-              <tr key={t.id} className="row">
-                <td><Link href={`/t/${team.id}/tasks/${t.id}`}><b>{t.title}</b></Link>
-                  {t.follow_up_date && <div className="sub">Follow-up {fmtDate(t.follow_up_date)}</div>}</td>
-                <td><span className={`tag ${t.urgency}`}>{t.urgency}</span></td>
-                <td className={isOverdue(t) ? 'overdue' : ''}>{fmtDate(t.deadline)}</td>
-                <td>{assigneeLabel(t)}</td>
-                <td><span className={`status ${t.status}`}>{STATUS[t.status]}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+  return (
+    <>
+      <header className="topbar">
+        <div>
+          <h1>{team.name}</h1>
+          <p className="sub">{isManager ? 'Manager view · you see every task in this team' : 'Your tasks and tasks given to the whole team'}</p>
+        </div>
+        {isManager && <Link href={`/t/${team.id}/members#invite`} className="btn primary topbar-cta">+ Invite people</Link>}
+      </header>
+
+      <div className="stats">
+        <div className="stat hero"><div className="label">Open</div><div className="num">{open.length}</div></div>
+        <div className="stat"><div className="label">Overdue</div><div className="num" style={{ color: open.some(isOverdue) ? 'var(--red)' : undefined }}>{open.filter(isOverdue).length}</div></div>
+        <div className="stat"><div className="label">{isManager ? 'To review' : 'In review'}</div><div className="num">{toReview.length}</div></div>
+        <div className="stat"><div className="label">Follow-ups due</div><div className="num">{followUps.length}</div></div>
+      </div>
+
+      <TaskBoard
+        teamId={team.id} rows={rows} isManager={isManager} userId={user.id} show={show}
+        members={members || []} above={above}
+      />
     </>
   );
 }

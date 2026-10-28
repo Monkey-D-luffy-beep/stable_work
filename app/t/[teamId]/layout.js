@@ -1,3 +1,4 @@
+import SubmitButton from "@/components/SubmitButton";
 import Link from 'next/link';
 import { getTeamCtx } from '@/lib/ctx';
 import TeamAvatar from '@/components/TeamAvatar';
@@ -25,7 +26,7 @@ export default async function TeamLayout({ children, params }) {
           <Link className="nav-item" href={`/t/${team.id}`}>Tasks</Link>
           <Link className="nav-item" href={`/t/${team.id}/members`}>{isManager ? 'Members & settings' : 'Members'}</Link>
         </nav>
-        <form action={logout} style={{ marginTop: 24 }}><button className="btn">Sign out</button></form>
+        <form action={logout} style={{ marginTop: 24 }}><SubmitButton className="btn">Sign out</SubmitButton></form>
       </aside>
       <main className="main">{children}</main>
     </div>

@@ -17,9 +17,11 @@ export async function middleware(req) {
       },
     }
   );
-  const { data: { user } } = await sb.auth.getUser();
+  // getSession reads the cookie locally (no network call); pages re-verify with getUser().
+  const { data: { session } } = await sb.auth.getSession();
+  const user = session?.user;
   const p = req.nextUrl.pathname;
-  const open = p.startsWith('/login') || p.startsWith('/auth') || p.startsWith('/api/cron');
+  const open = p === '/' || p.startsWith('/login') || p.startsWith('/auth') || p.startsWith('/api/cron');
   if (!user && !open) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';
