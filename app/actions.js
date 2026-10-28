@@ -23,7 +23,7 @@ export async function login(fd) {
   const sb = await supabaseServer();
   const { error } = await sb.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: `${await siteUrl()}/auth/callback?next=${enc(next)}` },
+    options: { emailRedirectTo: `${await siteUrl()}/auth/callback?next=${enc(next)}`, data: { app: 'stableworks' } },
   });
   if (error) redirect(`/login?error=${enc(error.message)}&next=${enc(next)}`);
   redirect(`/login?sent=${enc(email)}`);
@@ -47,8 +47,10 @@ export async function signUpPassword(fd) {
   const fail = (m) => redirect(`/login?mode=signup&error=${enc(m)}&next=${enc(next)}`);
   if (password.length < 8) fail('Password must be at least 8 characters');
   // Created pre-confirmed through the admin API so no confirmation email is needed.
-  const { error } = await admin().auth.admin.createUser({ email, password, email_confirm: true });
-  if (error) fail(/already|registered|exists/i.test(error.message) ? 'That email already has an account. Use Sign in.' : error.message);
+  const { error } = await admin().auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { app: 'stableworks' } });
+  if (error) fail(/already|registered|exists/i.test(error.message) ? 'That email already has an account. Use Sign in.'
+    : /database error/i.test(error.message) ? 'Could not create the account: the shared database rejected a new user. See the setup note, or ask for the sign-up rule to be fixed.'
+    : error.message);
   const sb = await supabaseServer();
   const { error: e2 } = await sb.auth.signInWithPassword({ email, password });
   if (e2) fail(e2.message);
