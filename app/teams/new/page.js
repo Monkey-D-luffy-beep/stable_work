@@ -14,7 +14,7 @@ export default async function NewTeam({ searchParams }) {
       <p className="sub">One team per project. You'll be its manager.</p>
       {error && <p className="error">{error}</p>}
       <form action={createTeam} className="panel stack">
-        <label>Team name<input name="name" placeholder="e.g. Warehouse Rollout" required autoFocus /></label>
+        <label>Team name<input name="name" placeholder="e.g. Export Operations" required autoFocus /></label>
         <label>Description <span className="sub">(optional)</span><input name="description" /></label>
         <AvatarPicker />
         <label>Invite people <span className="sub">(optional, emails separated by commas or new lines)</span>

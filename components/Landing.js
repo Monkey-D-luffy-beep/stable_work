@@ -57,16 +57,18 @@ export default function Landing() {
           </div>
 
           <div className="mock" aria-label="Sample view of the task board">
-            <div className="mock-bar"><i /><i /><i /><span>Warehouse Rollout · sample</span></div>
+            <div className="mock-bar"><i /><i /><i /><span>Export Operations · sample</span></div>
             <div className="mock-body">
               <div className="mock-stats">
                 <div>Open<b>12</b></div><div>Overdue<b>2</b></div><div>To review<b>3</b></div>
               </div>
               {[
-                ['Barcode scanner setup', 'urgent', 'PR', 'In review'],
-                ['Dock 2 inventory audit', 'high', 'AM', 'In progress'],
-                ['Driver schedule update', 'medium', 'RK', 'To do'],
-                ['Client portal walkthrough', 'low', 'SP', 'Done'],
+                ['Customs clearance: Mundra shipment', 'urgent', 'PR', 'In review'],
+                ['Invoice for export consignment', 'high', 'AM', 'In progress'],
+                ['Draft Bill of Lading (BL)', 'high', 'RK', 'In progress'],
+                ['Freight booking: Nhava Sheva to Rotterdam', 'medium', 'SP', 'To do'],
+                ['Marketing: LinkedIn campaign', 'medium', 'NK', 'To do'],
+                ['Website update: tracking page', 'low', 'DV', 'Done'],
               ].map(([t, u, w, s]) => (
                 <div className="mock-row" key={t}>
                   <span className="grow">{t}</span>
@@ -149,7 +151,7 @@ export default function Landing() {
               <p>Every Monday you get a weekly summary and on the 1st a monthly one: what was completed, what is overdue, what is waiting for review and who did what.</p>
             </div>
             <div className="mail" aria-hidden="true">
-              <span>Weekly report · Warehouse Rollout</span>
+              <span>Weekly report · Export Operations</span>
               <div className="stats3">
                 <span className="g"><b>9</b>Completed</span><span><b>14</b>Created</span><span><b>2</b>Overdue</span>
               </div>
