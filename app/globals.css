@@ -291,3 +291,66 @@ table.dsr thead th { position: sticky; top: 0; }
 .dsr-mock .dsr-wrap { border: 0; border-radius: 0; box-shadow: none; }
 .dsr-mock { max-width: 1000px; margin: auto; }
 @media (max-width: 900px) { .dsr-form { grid-template-columns: 1fr 1fr; } .export { margin-left: 0; } }
+
+/* ---------- mobile ---------- */
+.lp { overflow-x: clip; }
+
+@media (max-width: 900px) {
+  /* inputs at 16px stop iOS from zooming in when focused */
+  input, select, textarea { font-size: 16px; }
+
+  /* app shell: slim top bar with swipeable teams + nav instead of a tall sidebar */
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .sidebar { padding: 12px 14px; display: grid; gap: 10px; }
+  .logo { width: 140px; margin: 0; }
+  .sidebar .side-head { display: none; }
+  .projects, .nav { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .projects::-webkit-scrollbar, .nav::-webkit-scrollbar { display: none; }
+  .proj, .nav-item { flex: none; white-space: nowrap; border: 1px solid var(--line); border-radius: 99px; padding: 7px 14px; }
+  .proj { padding: 5px 12px 5px 6px; }
+  .sidebar form[style] { margin-top: 0 !important; }
+  .sidebar form .btn { padding: 6px 14px; font-size: 13px; }
+
+  .main { gap: 14px; }
+  h1 { font-size: 24px; }
+  .topbar { flex-wrap: wrap; gap: 10px; }
+  .topbar-cta { margin-left: 0; width: 100%; text-align: center; }
+  .stat { padding: 14px; }
+  .stat .num { font-size: 30px; }
+  .panel { padding: 16px; }
+  th, td { padding: 11px 12px; }
+  .filters .dsr-search { max-width: none; flex: 1 1 100%; }
+
+  /* landing */
+  .lp-nav .lp-wrap { height: 60px; gap: 10px; padding: 0 14px; }
+  .lp-nav img { height: 28px; }
+  .lp-nav .cta { gap: 8px; }
+  .lp-nav .cta .btn { padding: 8px 14px; font-size: 13px; white-space: nowrap; }
+  .lp .btn { padding: 13px 24px; }
+  .lp-btns .btn { flex: 1 1 100%; text-align: center; }
+  .lp-wrap { padding: 0 18px; }
+  .lp-hero .lp-wrap { gap: 36px; }
+  .lp-lead { font-size: 16px; }
+  .lp-head { margin-bottom: 36px; }
+  .feat { padding: 22px; }
+  .band { border-radius: 22px; }
+  .mock-stats b { font-size: 18px; }
+  .mock-row { flex-wrap: wrap; font-size: 12px; }
+  .mock-row .grow { flex: 1 1 100%; }
+  .faq details { padding: 16px 18px; }
+  .lp-foot .lp-wrap { flex-direction: column; gap: 22px; }
+}
+
+@media (max-width: 520px) {
+  .dsr-form { grid-template-columns: 1fr; }
+  .row > label { min-width: 100%; }
+  .stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .auth-card { padding: 24px; }
+  .team-grid { grid-template-columns: 1fr; }
+  .home-head { flex-wrap: wrap; }
+  .home-head .sub { margin-left: 0; order: 3; width: 100%; }
+  .wrap { padding: 20px 16px 48px; }
+  .login-form { padding: 28px 16px; }
+  .login-box h1 { font-size: 26px; }
+  .actions .btn { flex: 1 1 100%; text-align: center; }
+}
