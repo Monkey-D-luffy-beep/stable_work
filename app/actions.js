@@ -28,6 +28,32 @@ export async function login(fd) {
   redirect(`/login?sent=${enc(email)}`);
 }
 
+const safeNext = (n) => (n && n.startsWith('/') && !n.startsWith('//') ? n : '/');
+
+// Password sign-in: no email is sent, so Supabase's email rate limit does not apply.
+export async function signInPassword(fd) {
+  const next = safeNext(str(fd, 'next'));
+  const sb = await supabaseServer();
+  const { error } = await sb.auth.signInWithPassword({ email: str(fd, 'email').toLowerCase(), password: fd.get('password') || '' });
+  if (error) redirect(`/login?mode=signin&error=${enc(error.message)}&next=${enc(next)}`);
+  redirect(next);
+}
+
+export async function signUpPassword(fd) {
+  const next = safeNext(str(fd, 'next'));
+  const email = str(fd, 'email').toLowerCase();
+  const password = (fd.get('password') || '').toString();
+  const fail = (m) => redirect(`/login?mode=signup&error=${enc(m)}&next=${enc(next)}`);
+  if (password.length < 8) fail('Password must be at least 8 characters');
+  // Created pre-confirmed through the admin API so no confirmation email is needed.
+  const { error } = await admin().auth.admin.createUser({ email, password, email_confirm: true });
+  if (error) fail(/already|registered|exists/i.test(error.message) ? 'That email already has an account. Use Sign in.' : error.message);
+  const sb = await supabaseServer();
+  const { error: e2 } = await sb.auth.signInWithPassword({ email, password });
+  if (e2) fail(e2.message);
+  redirect(next);
+}
+
 export async function logout() {
   const sb = await supabaseServer();
   await sb.auth.signOut();
