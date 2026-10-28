@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tiger Logistics · Projects</title>
+  <link rel="icon" href="TigerLogistics-01-2.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <img class="logo" src="TigerLogistics-01-2.png" alt="Tiger Logistics">
+      <nav class="nav">
+        <button class="nav-item active" data-view="dashboard">Dashboard</button>
+        <button class="nav-item" data-view="board">Board</button>
+        <button class="nav-item" data-view="list">All tasks</button>
+      </nav>
+      <div class="side-head">
+        <span>Projects</span>
+        <button class="icon-btn" id="addProject" title="New project">+</button>
+      </div>
+      <div class="projects" id="projectList"></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-btn menu" id="menuBtn" aria-label="Menu">☰</button>
+        <div>
+          <h1 id="viewTitle">Dashboard</h1>
+          <p class="sub" id="viewSub"></p>
+        </div>
+        <div class="top-actions">
+          <input id="search" type="search" placeholder="Search tasks…">
+          <button class="btn primary" id="addTask">+ New task</button>
+        </div>
+      </header>
+      <section id="content"></section>
+    </main>
+  </div>
+
+  <dialog id="taskDialog">
+    <form method="dialog" id="taskForm">
+      <h2 id="taskDialogTitle">New task</h2>
+      <label>Title<input name="title" required></label>
+      <label>Description<textarea name="desc" rows="3"></textarea></label>
+      <div class="row">
+        <label>Project<select name="projectId"></select></label>
+        <label>Status
+          <select name="status">
+            <option value="todo">To do</option>
+            <option value="progress">In progress</option>
+            <option value="review">Review</option>
+            <option value="done">Done</option>
+          </select>
+        </label>
+      </div>
+      <div class="row">
+        <label>Priority
+          <select name="priority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+        <label>Assignee<input name="assignee" placeholder="e.g. Saurav"></label>
+        <label>Due date<input name="due" type="date"></label>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn danger" id="deleteTask">Delete</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="cancelTask">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="projectDialog">
+    <form method="dialog" id="projectForm">
+      <h2>New project</h2>
+      <label>Name<input name="name" required></label>
+      <div class="actions">
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="cancelProject">Cancel</button>
+        <button type="submit" class="btn primary">Create</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
