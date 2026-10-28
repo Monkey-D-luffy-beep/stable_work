@@ -10,6 +10,7 @@ import { siteUrl } from '@/lib/site';
 import { sendReports } from '@/lib/report';
 import { PRESETS } from '@/lib/presets';
 import { STATUS } from '@/lib/util';
+import { cleanRow, parseSheet } from '@/lib/dsr';
 
 const str = (fd, k) => (fd.get(k) || '').toString().trim();
 const enc = encodeURIComponent;
@@ -341,4 +342,55 @@ export async function deleteTask(fd) {
   await ctx.sb.from('tp_tasks').delete().eq('id', str(fd, 'id'));
   if (str(fd, 'stay')) return revalidatePath(`/t/${ctx.team.id}`);
   redirect(`/t/${ctx.team.id}`);
+}
+
+/* ---------- DSR (shipments) ---------- */
+
+const rawFromForm = (fd) => Object.fromEntries([...fd.entries()].map(([k, v]) => [k, typeof v === 'string' ? v : '']));
+
+export async function createShipment(fd) {
+  const ctx = await getTeamCtx(str(fd, 'teamId'));
+  const row = cleanRow(rawFromForm(fd));
+  if (!row.mbl && !row.hbl && !row.trl_no && !row.shipper_name) return;
+  // Ignore an identical shipment created moments ago (double-click / retry).
+  if (row.mbl || row.hbl) {
+    let q = ctx.sb.from('tp_shipments').select('id').eq('team_id', ctx.team.id)
+      .gte('created_at', new Date(Date.now() - 15000).toISOString()).limit(1);
+    q = row.mbl ? q.eq('mbl', row.mbl) : q.is('mbl', null);
+    q = row.hbl ? q.eq('hbl', row.hbl) : q.is('hbl', null);
+    const { data: dupe } = await q;
+    if (dupe?.length) return;
+  }
+  await ctx.sb.from('tp_shipments').insert({ ...row, team_id: ctx.team.id, created_by: ctx.user.id });
+  revalidatePath(`/t/${ctx.team.id}/dsr`);
+}
+
+export async function updateShipment(fd) {
+  const ctx = await getTeamCtx(str(fd, 'teamId'));
+  await ctx.sb.from('tp_shipments')
+    .update({ ...cleanRow(rawFromForm(fd)), updated_at: new Date().toISOString() })
+    .eq('id', str(fd, 'id')).eq('team_id', ctx.team.id);
+  revalidatePath(`/t/${ctx.team.id}/dsr`);
+  redirect(`/t/${ctx.team.id}/dsr`);
+}
+
+export async function deleteShipment(fd) {
+  const ctx = await getTeamCtx(str(fd, 'teamId'));
+  if (!ctx.isManager) return;
+  await ctx.sb.from('tp_shipments').delete().eq('id', str(fd, 'id')).eq('team_id', ctx.team.id);
+  if (str(fd, 'stay')) return revalidatePath(`/t/${ctx.team.id}/dsr`);
+  redirect(`/t/${ctx.team.id}/dsr`);
+}
+
+// Paste rows straight from Excel / Google Sheets (with or without the header row).
+export async function importShipments(fd) {
+  const ctx = await getTeamCtx(str(fd, 'teamId'));
+  const rows = parseSheet(fd.get('sheet'));
+  const back = (m) => redirect(`/t/${ctx.team.id}/dsr?msg=${enc(m)}`);
+  if (!rows.length) back('Nothing to import. Paste rows copied from your sheet, including the header row.');
+  if (rows.length > 500) back('Import up to 500 rows at a time.');
+  const { error } = await ctx.sb.from('tp_shipments').insert(rows.map((r) => ({ ...r, team_id: ctx.team.id, created_by: ctx.user.id })));
+  if (error) back(`Import failed: ${error.message}`);
+  revalidatePath(`/t/${ctx.team.id}/dsr`);
+  back(`Imported ${rows.length} shipment${rows.length === 1 ? '' : 's'}.`);
 }

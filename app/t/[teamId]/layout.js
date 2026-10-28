@@ -23,6 +23,7 @@ export default async function TeamLayout({ children, params }) {
         </div>
         <div className="side-head" style={{ marginTop: 22 }}><span>{team.name}</span><span className={`tag ${isManager ? 'manager' : 'member'}`}>{isManager ? 'manager' : 'member'}</span></div>
         <nav className="nav">
+          <Link className="nav-item" href={`/t/${team.id}/dsr`}>DSR</Link>
           <Link className="nav-item" href={`/t/${team.id}`}>Tasks</Link>
           <Link className="nav-item" href={`/t/${team.id}/members`}>{isManager ? 'Members & settings' : 'Members'}</Link>
         </nav>

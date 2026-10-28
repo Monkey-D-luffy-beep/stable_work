@@ -272,3 +272,22 @@ tr.leaving { animation: rowOut .25s ease forwards; pointer-events: none; }
   .login-brand ul, .login-brand p { display: none; }
   .login-brand h2 { font-size: 1.6rem; margin: 0; }
 }
+
+/* ---------- DSR ---------- */
+.dsr-form { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.dsr-search { max-width: 320px; }
+.export { margin-left: auto; }
+.dsr-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+table.dsr { box-shadow: none; border-radius: 0; font-size: 13px; width: max-content; min-width: 100%; }
+table.dsr th, table.dsr td { white-space: nowrap; padding: 11px 14px; }
+table.dsr td.wide { white-space: normal; min-width: 220px; max-width: 280px; }
+table.dsr .sno { color: var(--muted); font-weight: 700; }
+table.dsr td a:hover { color: var(--accent); }
+table.dsr thead th { position: sticky; top: 0; }
+.jobs { display: inline-block; padding: 2px 10px; border-radius: 99px; font-weight: 700; font-size: 11px; }
+.jobs.ok { background: #e0f4e8; color: var(--green); }
+.jobs.go { background: var(--accent-soft); color: var(--accent-dark); }
+.jobs.wait { background: #fff3cd; color: #8a6200; }
+.dsr-mock .dsr-wrap { border: 0; border-radius: 0; box-shadow: none; }
+.dsr-mock { max-width: 1000px; margin: auto; }
+@media (max-width: 900px) { .dsr-form { grid-template-columns: 1fr 1fr; } .export { margin-left: 0; } }
