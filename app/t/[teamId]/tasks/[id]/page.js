@@ -94,7 +94,7 @@ export default async function TaskPage({ params }) {
             </form>
           )}
           {t.status === 'review' && !isManager && (
-            <div className="panel notice">Waiting for a manager to review this task.</div>
+            <div className="panel notice">Review requested. Waiting for a response.</div>
           )}
 
           <form action={setFollowUp} className="panel stack">

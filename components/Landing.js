@@ -12,18 +12,18 @@ const Icon = ({ name }) => <span className="ico"><svg viewBox="0 0 24 24" aria-h
 
 const FEATURES = [
   ['users', 'A team for every project', 'Create a team per project, pick a team picture, and invite exactly the people who belong on it. One person can be in many teams.'],
-  ['shield', 'Roles that keep it simple', 'Managers see every task and assign work to the whole team or one person. Members see their own tasks and anything given to the team.'],
+  ['shield', 'Assign to a person or the whole team', 'Give a task to one teammate or to everyone at once, so it is always clear who owns what.'],
   ['flag', 'Urgency and deadlines', 'Mark tasks low to urgent, add a deadline if there is one, and attach notes. Overdue work is highlighted so it never hides.'],
-  ['check', 'Built-in review', 'Members request a review when work is ready. Managers approve it or send it back with feedback, and everyone is notified by email.'],
+  ['check', 'Reviews when you need them', 'Ask a teammate to look over finished work. They can approve it or send it back with comments, and you are notified by email.'],
   ['bell', 'Follow-ups that stick', 'Set a follow-up date and reminder note on any task so nothing is forgotten once it leaves your hands.'],
   ['history', 'Complete task history', 'Every change, note, review and follow-up is recorded with who did it and when, so you can always see what happened.'],
 ];
 
 const FAQ = [
-  ['How do roles work?', 'Each team has managers and members. Managers see all tasks in the team, assign tasks to the whole team or a person, review work and manage members. Members see tasks assigned to them, created by them, or given to the whole team.'],
-  ['Can I be in more than one team?', 'Yes. Create a team for each project and switch between them from the sidebar. Your role can differ in every team.'],
-  ['How do invites work?', 'A manager enters email addresses, either when creating the team or later from the Members page. Each person gets a link by email, and the manager can also copy the link directly.'],
-  ['What reports are sent?', 'A weekly report goes out every Monday and a monthly report on the 1st. Managers receive the whole team with a breakdown by person; members receive their own tasks.'],
+  ['Who can see which tasks?', 'Everyone in a team sees the tasks assigned to them or to the whole team. Team leads can see every task in the team.'],
+  ['Can I be in more than one team?', 'Yes. Create a team for each project and switch between them from the sidebar.'],
+  ['How do invites work?', 'Enter email addresses when creating a team, or later from the Members page. Each person gets a link by email, and you can also copy the link directly.'],
+  ['What reports are sent?', 'A weekly report goes out every Monday and a monthly report on the 1st, summarising what was completed, what is overdue and what is waiting for review.'],
   ['Is task history kept?', 'Yes. Every update, note, review decision and follow-up is stored on the task with the person and time.'],
 ];
 
@@ -48,7 +48,7 @@ export default function Landing() {
           <div>
             <span className="eyebrow">Task management for Tiger Logistics teams</span>
             <h1>Every task, every team, <em>one clear view.</em></h1>
-            <p className="lp-lead">Assign work, set urgency and deadlines, request reviews and keep a full history. Managers stay in control without chasing updates, and reports arrive in the inbox every week.</p>
+            <p className="lp-lead">Assign work, set urgency and deadlines, ask for reviews and keep a full history of every task. Weekly reports land in your inbox automatically.</p>
             <div className="lp-btns">
               <Link href="/login" className="btn primary">Start with your team</Link>
               <a href="#how" className="btn">See how it works</a>
@@ -78,7 +78,6 @@ export default function Landing() {
                 </div>
               ))}
             </div>
-            <div className="mock-float"><b>✓</b> Review approved by your manager</div>
           </div>
         </div>
       </section>
@@ -87,7 +86,7 @@ export default function Landing() {
         <div className="lp-wrap">
           <div className="lp-head">
             <h2>Everything a team needs to get work done</h2>
-            <p>Simple enough to use on day one, with the structure managers need to stay on top of it.</p>
+            <p>Simple enough to use on day one, with the structure a growing team needs.</p>
           </div>
           <div className="feat-grid">
             {FEATURES.map(([icon, title, text]) => (
@@ -97,42 +96,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="lp-sec alt">
-        <div className="lp-wrap">
-          <div className="lp-head">
-            <h2>The right view for each role</h2>
-            <p>Managers get the whole picture. Members get a focused list.</p>
-          </div>
-          <div className="split">
-            <div className="role dark">
-              <span className="tag manager">Manager</span>
-              <h3>See everything, assign anything</h3>
-              <p>Oversee the team without asking for status updates.</p>
-              <ul>
-                <li>View every task across the team</li>
-                <li>Assign to the whole team or one person</li>
-                <li>Approve work or request changes</li>
-                <li>Invite and manage members</li>
-                <li>Receive the full team report</li>
-              </ul>
-            </div>
-            <div className="role">
-              <span className="tag member">Member</span>
-              <h3>Focus on your own work</h3>
-              <p>A clear list of what is yours, with nothing extra.</p>
-              <ul>
-                <li>See tasks assigned to you or your team</li>
-                <li>Add tasks with urgency, deadline and notes</li>
-                <li>Request a review when work is ready</li>
-                <li>Leave notes and set follow-ups</li>
-                <li>Receive your own weekly report</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="lp-sec" id="how">
+      <section className="lp-sec alt" id="how">
         <div className="lp-wrap">
           <div className="lp-head"><h2>Up and running in three steps</h2><p>No setup project required.</p></div>
           <div className="steps">
@@ -143,12 +107,12 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="lp-sec alt" id="reports">
+      <section className="lp-sec" id="reports">
         <div className="lp-wrap">
           <div className="band">
             <div>
               <h2>Reports land in your inbox, automatically</h2>
-              <p>Every Monday you get a weekly summary and on the 1st a monthly one: what was completed, what is overdue, what is waiting for review and who did what.</p>
+              <p>Every Monday you get a weekly summary and on the 1st a monthly one: what was completed, what is overdue and what is waiting for review.</p>
             </div>
             <div className="mail" aria-hidden="true">
               <span>Weekly report · Export Operations</span>

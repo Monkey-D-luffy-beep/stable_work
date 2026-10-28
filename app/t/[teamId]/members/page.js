@@ -73,7 +73,7 @@ export default async function Members({ params, searchParams }) {
             <form action={sendReportNow} className="panel stack">
               {hidden}
               <h3>Task reports</h3>
-              <p className="sub">Reports go out automatically every Monday (weekly) and on the 1st (monthly). Managers get the full team; members get their own tasks. Send one now:</p>
+              <p className="sub">Reports go out automatically every Monday (weekly) and on the 1st (monthly). Team leads get the full team; everyone else gets their own tasks. Send one now:</p>
               <div className="actions">
                 <SubmitButton name="kind" value="weekly" className="btn">Send weekly report</SubmitButton>
                 <SubmitButton name="kind" value="monthly" className="btn">Send last month's report</SubmitButton>

@@ -57,7 +57,7 @@ export default async function Tasks({ params, searchParams }) {
       <header className="topbar">
         <div>
           <h1>{team.name}</h1>
-          <p className="sub">{isManager ? 'Manager view · you see every task in this team' : 'Your tasks and tasks given to the whole team'}</p>
+          <p className="sub">{isManager ? 'Every task in this team' : 'Your tasks and tasks shared with the whole team'}</p>
         </div>
         {isManager && <Link href={`/t/${team.id}/members#invite`} className="btn primary topbar-cta">+ Invite people</Link>}
       </header>

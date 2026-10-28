@@ -27,7 +27,7 @@ export default async function Home({ searchParams }) {
       </div>
       {teams.length === 0 ? (
         <div className="panel empty">
-          You're not in any team yet. Create one for a project, or open an invite link from your manager.
+          You're not in any team yet. Create one for a project, or open an invite link you were sent.
         </div>
       ) : (
         <div className="team-grid">

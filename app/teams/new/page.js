@@ -11,7 +11,7 @@ export default async function NewTeam({ searchParams }) {
     <main className="wrap narrow">
       <Link href="/" className="sub">← Your teams</Link>
       <h1>Create a team</h1>
-      <p className="sub">One team per project. You'll be its manager.</p>
+      <p className="sub">One team per project. Add a picture and invite your people.</p>
       {error && <p className="error">{error}</p>}
       <form action={createTeam} className="panel stack">
         <label>Team name<input name="name" placeholder="e.g. Export Operations" required autoFocus /></label>
