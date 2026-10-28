@@ -94,7 +94,7 @@ async function sendInvites(db, team, inviterName, emails, role) {
   const base = await siteUrl();
   const sent = await Promise.all((rows || []).map((r) => sendMail({
     to: r.email,
-    subject: `${inviterName} invited you to ${team.name} on Tiger Projects`,
+    subject: `${inviterName} invited you to ${team.name} on Stableworks`,
     html: `<p>${inviterName} invited you to join <b>${team.name}</b> as ${role}.</p><p><a href="${base}/join?token=${r.token}">Accept invite</a></p>`,
   })));
   return { created: rows?.length || 0, mailed: sent.filter((s) => s.ok).length };

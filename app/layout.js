@@ -4,9 +4,8 @@ import './globals.css';
 const font = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'], display: 'swap', variable: '--font' });
 
 export const metadata = {
-  title: 'Tiger Projects: team task management',
-  description: 'Teams, tasks, reviews and weekly reports for Tiger Logistics.',
-  icons: { icon: '/logo.png' },
+  title: 'Stableworks: team project management',
+  description: 'Teams, tasks, reviews and weekly reports in one place.',
 };
 
 export default function RootLayout({ children }) {

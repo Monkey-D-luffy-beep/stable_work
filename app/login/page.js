@@ -10,7 +10,7 @@ export default async function Login({ searchParams }) {
   return (
     <main className="center">
       <div className="auth-card">
-        <img src="/logo.png" alt="Tiger Logistics" className="auth-logo" />
+        <img src="/logo.png" alt="Stableworks" className="auth-logo" />
 
         {sent ? (
           <>

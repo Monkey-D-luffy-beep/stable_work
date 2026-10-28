@@ -2,7 +2,7 @@ import { PRESETS } from '@/lib/presets';
 
 // Pick a default picture or upload your own (an upload wins over the preset).
 export default function AvatarPicker({ current }) {
-  const selected = PRESETS.some((p) => p.id === current) ? current : current?.startsWith('http') ? '' : 'tiger';
+  const selected = PRESETS.some((p) => p.id === current) ? current : current?.startsWith('http') ? '' : PRESETS[0].id;
   return (
     <div className="picker">
       <span className="label">Team picture</span>

@@ -11,7 +11,7 @@ export default async function TeamLayout({ children, params }) {
   return (
     <div className="app">
       <aside className="sidebar">
-        <Link href="/"><img className="logo" src="/logo.png" alt="Tiger Logistics" /></Link>
+        <Link href="/"><img className="logo" src="/logo.png" alt="Stableworks" /></Link>
         <div className="side-head"><span>Teams</span><Link href="/teams/new" className="icon-btn" title="New team">+</Link></div>
         <div className="projects">
           {teams.map((m) => (

@@ -32,7 +32,7 @@ export default function Landing() {
     <div className="lp">
       <header className="lp-nav">
         <div className="lp-wrap">
-          <Link href="/"><img src="/logo.png" alt="Tiger Logistics" /></Link>
+          <Link href="/"><img src="/logo.png" alt="Stableworks" /></Link>
           <nav className="lp-links">
             <a href="#features">Features</a><a href="#how">How it works</a><a href="#reports">Reports</a><a href="#faq">FAQ</a>
           </nav>
@@ -46,7 +46,7 @@ export default function Landing() {
       <section className="lp-hero">
         <div className="lp-wrap">
           <div>
-            <span className="eyebrow">Task management for Tiger Logistics teams</span>
+            <span className="eyebrow">Project management for logistics teams</span>
             <h1>Every task, every team, <em>one clear view.</em></h1>
             <p className="lp-lead">Assign work, set urgency and deadlines, ask for reviews and keep a full history of every task. Weekly reports land in your inbox automatically.</p>
             <div className="lp-btns">
@@ -144,9 +144,9 @@ export default function Landing() {
 
       <footer className="lp-foot">
         <div className="lp-wrap">
-          <div className="badge"><img src="/logo.png" alt="Tiger Logistics" /></div>
+          <div className="badge"><img src="/logo.png" alt="Stableworks" /></div>
           <nav><a href="#features">Features</a><a href="#how">How it works</a><a href="#reports">Reports</a><a href="#faq">FAQ</a><Link href="/login">Sign in</Link></nav>
-          <small>© {new Date().getFullYear()} Tiger Logistics. All rights reserved.</small>
+          <small>© {new Date().getFullYear()} Stableworks. All rights reserved.</small>
         </div>
       </footer>
     </div>
