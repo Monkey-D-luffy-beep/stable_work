@@ -11,6 +11,7 @@ import { sendReports } from '@/lib/report';
 import { PRESETS } from '@/lib/presets';
 import { STATUS } from '@/lib/util';
 import { cleanRow, parseSheet } from '@/lib/dsr';
+import { isAvatar, defaultAvatar } from '@/lib/avatars';
 
 const str = (fd, k) => (fd.get(k) || '').toString().trim();
 const enc = encodeURIComponent;
@@ -47,7 +48,7 @@ export async function signUpPassword(fd) {
   const fail = (m) => redirect(`/login?mode=signup&error=${enc(m)}&next=${enc(next)}`);
   if (password.length < 8) fail('Password must be at least 8 characters');
   // Created pre-confirmed through the admin API so no confirmation email is needed.
-  const { error } = await admin().auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { app: 'stableworks' } });
+  const { error } = await admin().auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { app: 'stableworks', avatar: defaultAvatar(email) } });
   if (error) fail(/already|registered|exists/i.test(error.message) ? 'That email already has an account. Use Sign in.'
     : /database error/i.test(error.message) ? 'Could not create the account: the shared database rejected a new user. See the setup note, or ask for the sign-up rule to be fixed.'
     : error.message);
@@ -79,6 +80,18 @@ async function saveAvatar(teamId, fd) {
   const preset = str(fd, 'preset');
   return { avatar: PRESETS.some((p) => p.id === preset) ? preset : undefined };
 }
+
+// Writes a membership row; if the avatar column has not been added yet it falls back to saving without it.
+async function saveMember(db, row, opts) {
+  let r = await db.from('tp_members').upsert(row, opts);
+  if (r.error && /avatar/i.test(r.error.message)) {
+    const { avatar, ...rest } = row;
+    r = await db.from('tp_members').upsert(rest, opts);
+  }
+  return r;
+}
+const avatarFor = (user) => user.user_metadata?.avatar || defaultAvatar(user.email);
+const displayName = (user) => user.user_metadata?.full_name || user.email.split('@')[0];
 
 const parseEmails = (raw) => [...new Set(raw.toLowerCase().split(/[\s,;]+/).filter((e) => /^\S+@\S+\.\S+$/.test(e)))];
 
@@ -121,8 +134,8 @@ export async function createTeam(fd) {
   await db.from('tp_teams').update({ join_token: newToken() }).eq('id', team.id);
   await Promise.all([
     pic.avatar ? db.from('tp_teams').update({ avatar: pic.avatar }).eq('id', team.id) : null,
-    db.from('tp_members').insert({
-      team_id: team.id, user_id: user.id, role: 'manager', email: user.email, name: user.email.split('@')[0],
+    saveMember(db, {
+      team_id: team.id, user_id: user.id, role: 'manager', email: user.email, name: displayName(user), avatar: avatarFor(user),
     }),
   ]);
   const inv = await sendInvites(db, team, user.email.split('@')[0], parseEmails(str(fd, 'emails')), 'member');
@@ -160,8 +173,8 @@ export async function acceptInvite(fd) {
   if (!inv) redirect('/?msg=Invite+not+found+or+already+used');
   if (inv.email.toLowerCase() !== user.email.toLowerCase())
     redirect(`/join?token=${inv.token}&error=${enc(`This invite is for ${inv.email}. Sign in with that email.`)}`);
-  await db.from('tp_members').upsert({
-    team_id: inv.team_id, user_id: user.id, role: inv.role, email: user.email, name: user.email.split('@')[0],
+  await saveMember(db, {
+    team_id: inv.team_id, user_id: user.id, role: inv.role, email: user.email, name: displayName(user), avatar: avatarFor(user),
   });
   await db.from('tp_invites').update({ accepted_at: new Date().toISOString() }).eq('id', inv.id);
   redirect(`/t/${inv.team_id}`);
@@ -403,7 +416,7 @@ export async function importShipments(fd) {
 const URGENCIES = ['low', 'medium', 'high', 'urgent'];
 const STATUSES = Object.keys(STATUS);
 
-export async function addTaskQuick({ teamId, title, status = 'todo', urgency = 'medium', deadline = null, assignee = '' }) {
+export async function addTaskQuick({ teamId, title, status = 'todo', urgency = 'medium', deadline = null, start_date = null, assignee = '' }) {
   const ctx = await getTeamCtx(teamId);
   title = String(title || '').trim();
   if (!title) return { ok: false, error: 'Give the task a title' };
@@ -418,7 +431,7 @@ export async function addTaskQuick({ teamId, title, status = 'todo', urgency = '
   const { data, error } = await ctx.sb.from('tp_tasks').insert({
     team_id: ctx.team.id, title, status, created_by: ctx.user.id,
     urgency: URGENCIES.includes(urgency) ? urgency : 'medium', deadline: deadline || null,
-    completed_at: status === 'done' ? now : null, ...resolveAssignee(ctx, assignee),
+    completed_at: status === 'done' ? now : null, ...(start_date ? { start_date } : {}), ...resolveAssignee(ctx, assignee),
   }).select().single();
   if (error) return { ok: false, error: error.message };
   await log(ctx, data.id, 'created', data.for_team ? 'Assigned to the whole team' : null);
@@ -446,6 +459,10 @@ export async function patchTaskQuick({ teamId, id, patch = {} }) {
   if ('deadline' in patch) {
     const v = patch.deadline || null;
     if (v !== (old.deadline || null)) { next.deadline = v; changes.push(`deadline ${old.deadline || 'none'} → ${v || 'none'}`); }
+  }
+  if ('start_date' in patch) {
+    const v = patch.start_date || null;
+    if (v !== (old.start_date || null)) { next.start_date = v; changes.push(`start ${old.start_date || 'none'} → ${v || 'none'}`); }
   }
   if ('assignee' in patch && ctx.isManager) {
     const a = resolveAssignee(ctx, patch.assignee);
@@ -528,9 +545,11 @@ export async function joinWithNewAccount(fd) {
   if (!/^\S+@\S+\.\S+$/.test(email)) back('Please enter a valid email');
   if (password.length < 8) back('Password must be at least 8 characters');
 
+  const picked = str(fd, 'avatar');
+  const avatar = isAvatar(picked) ? picked : defaultAvatar(email);
   const db = admin();
   const { data: created, error } = await db.auth.admin.createUser({
-    email, password, email_confirm: true, user_metadata: { app: 'stableworks', full_name: name },
+    email, password, email_confirm: true, user_metadata: { app: 'stableworks', full_name: name, avatar },
   });
   if (error) {
     if (/already|registered|exists/i.test(error.message))
@@ -540,7 +559,7 @@ export async function joinWithNewAccount(fd) {
   const sb = await supabaseServer();
   const { error: e2 } = await sb.auth.signInWithPassword({ email, password });
   if (e2) back(e2.message);
-  await db.from('tp_members').upsert({ team_id: team.id, user_id: created.user.id, role: 'member', email, name });
+  await saveMember(db, { team_id: team.id, user_id: created.user.id, role: 'member', email, name, avatar });
   redirect(`/t/${team.id}?welcome=1`);
 }
 
@@ -550,10 +569,91 @@ export async function joinAsCurrentUser(fd) {
   const { user } = await getUser();
   const team = await teamForToken(token);
   if (!team) redirect(`/j/${token}?error=${enc('This invite link is no longer active.')}`);
-  const name = user.user_metadata?.full_name || user.email.split('@')[0];
-  await admin().from('tp_members').upsert(
-    { team_id: team.id, user_id: user.id, role: 'member', email: user.email, name },
-    { onConflict: 'team_id,user_id', ignoreDuplicates: true },
-  );
+  await saveMember(admin(),
+    { team_id: team.id, user_id: user.id, role: 'member', email: user.email, name: displayName(user), avatar: avatarFor(user) },
+    { onConflict: 'team_id,user_id', ignoreDuplicates: true });
   redirect(`/t/${team.id}?welcome=1`);
+}
+
+/* ---------- profile ---------- */
+
+export async function updateProfile(fd) {
+  const { user } = await getUser();
+  const name = str(fd, 'name');
+  const picked = str(fd, 'avatar');
+  const avatar = isAvatar(picked) ? picked : defaultAvatar(user.email);
+  const db = admin();
+  await db.auth.admin.updateUserById(user.id, {
+    user_metadata: { ...user.user_metadata, ...(name ? { full_name: name } : {}), avatar },
+  });
+  if (name) await db.from('tp_members').update({ name }).eq('user_id', user.id);
+  const r = await db.from('tp_members').update({ avatar }).eq('user_id', user.id);
+  revalidatePath('/', 'layout');
+  redirect(`/profile?msg=${enc(r.error ? 'Saved your name. Run supabase/avatars.sql to switch on pictures everywhere.' : 'Profile updated')}`);
+}
+
+/* ---------- reviews: pick a reviewer, then approve or send back with feedback ---------- */
+
+// Runs an update; if the review columns have not been added yet, retries without them.
+async function updateTaskSafe(ctx, id, next) {
+  let r = await ctx.sb.from('tp_tasks').update(next).eq('id', id).select().single();
+  if (r.error && /reviewer_id|review_note|start_date/i.test(r.error.message)) {
+    const { reviewer_id, review_note, start_date, ...rest } = next;
+    r = await ctx.sb.from('tp_tasks').update(rest).eq('id', id).select().single();
+    if (!r.error) r.fallback = true;
+  }
+  return r;
+}
+
+export async function requestReviewQuick({ teamId, id, reviewer = '', message = '' }) {
+  const ctx = await getTeamCtx(teamId);
+  const members = await memberList(ctx);
+  const rev = members.find((m) => m.user_id === reviewer);
+  if (!rev) return { ok: false, error: 'Choose who should review this' };
+  message = String(message || '').trim();
+
+  const now = new Date().toISOString();
+  const r = await updateTaskSafe(ctx, id, {
+    status: 'review', reviewer_id: rev.user_id, review_requested_at: now, review_note: null, completed_at: null, updated_at: now,
+  });
+  if (r.error) return { ok: false, error: r.error.message };
+  await log(ctx, id, 'review_requested', `${message ? message + ' — ' : ''}reviewer: ${rev.name || rev.email}`);
+
+  if (rev.email && rev.user_id !== ctx.user.id) {
+    const base = await siteUrl();
+    await sendMail({
+      to: rev.email, subject: `Review requested: ${r.data.title}`,
+      html: `<p>${ctx.name} asked you to review <b>${r.data.title}</b>.</p>${message ? `<p>“${message}”</p>` : ''}<p><a href="${base}/t/${ctx.team.id}">Open the task</a></p>`,
+    });
+  }
+  return { ok: true, task: r.data };
+}
+
+export async function decideReviewQuick({ teamId, id, decision, feedback = '' }) {
+  const ctx = await getTeamCtx(teamId);
+  const { data: old } = await ctx.sb.from('tp_tasks').select('*').eq('id', id).maybeSingle();
+  if (!old) return { ok: false, error: 'Task not found' };
+  if (old.status !== 'review') return { ok: false, error: 'This task is not waiting for review' };
+  if (!ctx.isManager && old.reviewer_id !== ctx.user.id) return { ok: false, error: 'Only the chosen reviewer or a manager can decide this review' };
+
+  const approve = decision === 'approve';
+  feedback = String(feedback || '').trim();
+  if (!approve && !feedback) return { ok: false, error: 'Add a short note so they know what to change' };
+
+  const now = new Date().toISOString();
+  const r = await updateTaskSafe(ctx, id, approve
+    ? { status: 'done', completed_at: now, review_note: feedback || null, updated_at: now }
+    : { status: 'changes_requested', completed_at: null, review_note: feedback, updated_at: now });
+  if (r.error) return { ok: false, error: r.error.message };
+  await log(ctx, id, approve ? 'review_approved' : 'changes_requested', feedback || null);
+
+  const members = await memberList(ctx);
+  const base = await siteUrl();
+  const notify = new Set([old.assignee_id, old.created_by].filter((u) => u && u !== ctx.user.id));
+  for (const m of members.filter((x) => notify.has(x.user_id) && x.email))
+    await sendMail({
+      to: m.email, subject: `${approve ? 'Approved' : 'Changes requested'}: ${old.title}`,
+      html: `<p>${ctx.name} ${approve ? 'approved' : 'asked for changes on'} <b>${old.title}</b>.</p>${feedback ? `<p>“${feedback}”</p>` : ''}<p><a href="${base}/t/${ctx.team.id}">Open the task</a></p>`,
+    });
+  return { ok: true, task: r.data };
 }

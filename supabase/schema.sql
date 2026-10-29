@@ -43,6 +43,9 @@ create table if not exists tp_tasks (
   follow_up_date date,
   follow_up_note text,
   review_requested_at timestamptz,
+  start_date date,
+  reviewer_id uuid references auth.users,
+  review_note text,
   completed_at timestamptz,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -92,7 +95,7 @@ create policy tp_tasks_select on tp_tasks for select using (tp_is_member(team_id
 create policy tp_tasks_insert on tp_tasks for insert with check (tp_is_member(team_id) and created_by = auth.uid());
 create policy tp_tasks_update on tp_tasks for update using (
   tp_is_manager(team_id)
-  or (tp_is_member(team_id) and (assignee_id = auth.uid() or created_by = auth.uid() or for_team))
+  or (tp_is_member(team_id) and (assignee_id = auth.uid() or created_by = auth.uid() or for_team or reviewer_id = auth.uid()))
 );
 create policy tp_tasks_delete on tp_tasks for delete using (tp_is_manager(team_id));
 
@@ -158,4 +161,8 @@ update tp_teams set join_token = encode(gen_random_bytes(9), 'hex') where join_t
 
 create unique index if not exists tp_teams_join_token_key on tp_teams(join_token);
 
+notify pgrst, 'reload schema';
+
+
+alter table tp_members add column if not exists avatar text;
 notify pgrst, 'reload schema';

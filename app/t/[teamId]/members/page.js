@@ -2,6 +2,8 @@ import SubmitButton from "@/components/SubmitButton";
 import { getTeamCtx } from '@/lib/ctx';
 import { siteUrl } from '@/lib/site';
 import TeamAvatar from '@/components/TeamAvatar';
+import Avatar from '@/components/Avatar';
+import { defaultAvatar } from '@/lib/avatars';
 import AvatarPicker from '@/components/AvatarPicker';
 import CopyLink from '@/components/CopyLink';
 import { updateTeam, inviteMembers, removeMember, revokeInvite, sendReportNow, deleteTeam, rotateJoinLink, toggleJoinLink } from '../../../actions';
@@ -34,7 +36,7 @@ export default async function Members({ params, searchParams }) {
             <h3>Members ({members?.length || 0})</h3>
             {(members || []).map((m) => (
               <div key={m.user_id} className="mini">
-                <span className="av">{(m.name || m.email || '?')[0].toUpperCase()}</span>
+                <Avatar src={m.avatar || defaultAvatar(m.email)} name={m.name || m.email} size={34} />
                 <span className="t">{m.name || m.email}<div className="sub">{m.email}</div></span>
                 <span className={`tag ${m.role}`}>{m.role}</span>
                 {isManager && m.user_id !== user.id && (

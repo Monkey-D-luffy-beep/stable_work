@@ -2,11 +2,13 @@ import SubmitButton from "@/components/SubmitButton";
 import Link from 'next/link';
 import { getTeamCtx } from '@/lib/ctx';
 import TeamAvatar from '@/components/TeamAvatar';
+import Avatar from '@/components/Avatar';
+import { defaultAvatar } from '@/lib/avatars';
 import { logout } from '../../actions';
 
 export default async function TeamLayout({ children, params }) {
   const { teamId } = await params;
-  const { team, teams, isManager } = await getTeamCtx(teamId);
+  const { team, teams, isManager, name, avatar, user } = await getTeamCtx(teamId);
 
   return (
     <div className="app">
@@ -27,7 +29,8 @@ export default async function TeamLayout({ children, params }) {
           <Link className="nav-item" href={`/t/${team.id}`}>Tasks</Link>
           <Link className="nav-item" href={`/t/${team.id}/members`}>{isManager ? 'Members & settings' : 'Members'}</Link>
         </nav>
-        <form action={logout} style={{ marginTop: 24 }}><SubmitButton className="btn">Sign out</SubmitButton></form>
+        <Link href="/profile" className="me-chip"><Avatar src={avatar || defaultAvatar(user.email)} name={name} size={32} /><span><b>{name}</b><small>Edit profile</small></span></Link>
+        <form action={logout} style={{ marginTop: 12 }}><SubmitButton className="btn">Sign out</SubmitButton></form>
       </aside>
       <main className="main">{children}</main>
     </div>

@@ -17,7 +17,7 @@ export default async function Home({ searchParams }) {
     <main className="wrap">
       <header className="home-head">
         <img src="/logo.png" alt="Stableworks" className="auth-logo" />
-        <span className="sub">{user.email}</span>
+        <Link href="/profile" className="sub">{user.email} · <b>Profile</b></Link>
         <form action={logout}><SubmitButton className="btn">Sign out</SubmitButton></form>
       </header>
       {msg && <p className="notice">{msg}</p>}

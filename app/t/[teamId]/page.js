@@ -9,7 +9,7 @@ export default async function Tasks({ params, searchParams }) {
 
   const [{ data: tasks }, { data: members }] = await Promise.all([
     sb.from('tp_tasks').select('*').eq('team_id', team.id).order('created_at', { ascending: false }).limit(1500),
-    sb.from('tp_members').select('user_id, name, email, role').eq('team_id', team.id).order('created_at'),
+    sb.from('tp_members').select('*').eq('team_id', team.id).order('created_at'),
   ]);
 
   return (

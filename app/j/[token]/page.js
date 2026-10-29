@@ -4,6 +4,7 @@ import { admin } from '@/lib/admin';
 import { supabaseServer } from '@/lib/supabase/server';
 import TeamAvatar from '@/components/TeamAvatar';
 import SubmitButton from '@/components/SubmitButton';
+import AvatarChooser from '@/components/AvatarChooser';
 import { joinWithNewAccount, joinAsCurrentUser } from '../../actions';
 
 export const metadata = { title: 'Join your team · Stableworks' };
@@ -71,6 +72,7 @@ export default async function JoinPage({ params, searchParams }) {
                 <input name="name" placeholder="Your name" autoComplete="name" required autoFocus />
                 <input name="email" type="email" placeholder="you@company.com" autoComplete="email" required />
                 <input name="password" type="password" placeholder="Choose a password (8+ characters)" minLength={8} autoComplete="new-password" required />
+                <details className="pic-pick"><summary>Choose a profile picture <span className="sub">(optional)</span></summary><AvatarChooser /></details>
                 <SubmitButton className="btn primary" pendingText="Creating your account…">Create account &amp; join</SubmitButton>
               </form>
               <p className="sub">Already have an account? <Link href={`/login?mode=signin&next=${encodeURIComponent(`/j/${token}`)}`}><b>Sign in</b></Link></p>
