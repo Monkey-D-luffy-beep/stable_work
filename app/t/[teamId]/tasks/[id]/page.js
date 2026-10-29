@@ -19,8 +19,9 @@ const LABEL = {
   follow_up_done: 'completed a follow-up',
 };
 
-export default async function TaskPage({ params }) {
+export default async function TaskPage({ params, searchParams }) {
   const { teamId, id } = await params;
+  const { msg } = await searchParams;
   const { sb, user, team, isManager } = await getTeamCtx(teamId);
 
   const { data: t } = await sb.from('tp_tasks').select('*').eq('id', id).eq('team_id', team.id).maybeSingle();
@@ -42,6 +43,7 @@ export default async function TaskPage({ params }) {
           <p className="sub"><span className={`status ${t.status}`}>{STATUS[t.status]}</span> · {t.for_team ? 'Whole team' : nameOf(members || [], t.assignee_id)}</p>
         </div>
       </header>
+      {msg && <p className="notice">{msg}</p>}
 
       <div className="grid2">
         <div className="stack">

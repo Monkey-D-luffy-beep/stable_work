@@ -72,7 +72,8 @@ export default function TaskWorkspace({ teamId, initialTasks, initialFollowups =
     return names.length ? names.slice(0, 2).join(' or ') : 'the team';
   };
   const who = (t) => (t.for_team ? 'Whole team' : t.assignee_id ? nameOf(t.assignee_id) : 'Unassigned');
-  const canEdit = (t) => isManager || t.assignee_id === userId || t.created_by === userId || t.for_team;
+  // Members change only their own tasks (or tasks given to the whole team); managers change anything.
+  const canEdit = (t) => isManager || t.assignee_id === userId || t.for_team;
   const isOver = (t) => !!t.deadline && t.status !== 'done' && t.deadline < today;
   const canDecide = (t) => t.status === 'review' && (isManager || t.reviewer_id === userId);
 

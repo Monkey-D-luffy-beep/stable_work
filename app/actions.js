@@ -255,6 +255,10 @@ function resolveAssignee(ctx, raw) {
   return { assignee_id: raw || ctx.user.id, for_team: false };
 }
 
+// Managers can edit any task. A member can edit only tasks assigned to them (or to the whole team).
+const canEditTask = (ctx, t) => ctx.isManager || t.for_team || t.assignee_id === ctx.user.id;
+const NOT_YOURS = 'You can only change your own tasks. Ask a manager to change or reassign this one.';
+
 export async function createTask(fd) {
   const ctx = await getTeamCtx(str(fd, 'teamId'));
   const title = str(fd, 'title');
@@ -280,7 +284,7 @@ export async function updateTask(fd) {
   const ctx = await getTeamCtx(str(fd, 'teamId'));
   const id = str(fd, 'id');
   const { data: old } = await ctx.sb.from('tp_tasks').select('*').eq('id', id).single();
-  if (!old) return;
+  if (!old || !canEditTask(ctx, old)) redirect(`/t/${ctx.team.id}/tasks/${id}?msg=${enc(NOT_YOURS)}`);
   const patch = {
     title: str(fd, 'title') || old.title,
     notes: str(fd, 'notes') || null,
@@ -312,6 +316,8 @@ export async function requestReview(fd) {
   const ctx = await getTeamCtx(str(fd, 'teamId'));
   const id = str(fd, 'id');
   const comment = str(fd, 'comment');
+  const { data: mine } = await ctx.sb.from('tp_tasks').select('*').eq('id', id).maybeSingle();
+  if (!mine || !canEditTask(ctx, mine)) redirect(`/t/${ctx.team.id}/tasks/${id}?msg=${enc(NOT_YOURS)}`);
   const { data: t } = await ctx.sb.from('tp_tasks').update({
     status: 'review', review_requested_at: new Date().toISOString(), updated_at: new Date().toISOString(),
   }).eq('id', id).select().single();
@@ -460,6 +466,7 @@ export async function patchTaskQuick({ teamId, id, patch = {} }) {
   const ctx = await getTeamCtx(teamId);
   const { data: old } = await ctx.sb.from('tp_tasks').select('*').eq('id', id).maybeSingle();
   if (!old) return { ok: false, error: 'Task not found' };
+  if (!canEditTask(ctx, old)) return { ok: false, error: NOT_YOURS };
 
   const next = {};
   const changes = [];
@@ -629,6 +636,8 @@ export async function requestReviewQuick({ teamId, id, reviewer = '', message = 
   const rev = members.find((m) => m.user_id === reviewer);
   if (!rev) return { ok: false, error: 'Choose who should review this' };
   message = String(message || '').trim();
+  const { data: mine } = await ctx.sb.from('tp_tasks').select('*').eq('id', id).maybeSingle();
+  if (!mine || !canEditTask(ctx, mine)) return { ok: false, error: NOT_YOURS };
 
   const now = new Date().toISOString();
   const r = await updateTaskSafe(ctx, id, {

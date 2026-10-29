@@ -13,7 +13,7 @@ create policy tp_tasks_select on tp_tasks for select using (tp_is_member(team_id
 drop policy if exists tp_tasks_update on tp_tasks;
 create policy tp_tasks_update on tp_tasks for update using (
   tp_is_manager(team_id)
-  or (tp_is_member(team_id) and (assignee_id = auth.uid() or created_by = auth.uid() or for_team or reviewer_id = auth.uid()))
+  or (tp_is_member(team_id) and (assignee_id = auth.uid() or for_team or reviewer_id = auth.uid()))
 );
 
 create table if not exists tp_followups (

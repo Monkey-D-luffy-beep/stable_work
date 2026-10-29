@@ -95,7 +95,7 @@ create policy tp_tasks_select on tp_tasks for select using (tp_is_member(team_id
 create policy tp_tasks_insert on tp_tasks for insert with check (tp_is_member(team_id) and created_by = auth.uid());
 create policy tp_tasks_update on tp_tasks for update using (
   tp_is_manager(team_id)
-  or (tp_is_member(team_id) and (assignee_id = auth.uid() or created_by = auth.uid() or for_team or reviewer_id = auth.uid()))
+  or (tp_is_member(team_id) and (assignee_id = auth.uid() or for_team or reviewer_id = auth.uid()))
 );
 create policy tp_tasks_delete on tp_tasks for delete using (tp_is_manager(team_id));
 
