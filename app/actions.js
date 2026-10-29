@@ -657,3 +657,55 @@ export async function decideReviewQuick({ teamId, id, decision, feedback = '' })
     });
   return { ok: true, task: r.data };
 }
+
+/* ---------- follow-up requests: ask anyone to follow up on a task ---------- */
+
+export async function askFollowUp({ teamId, taskId, to, message = '', due = null }) {
+  const ctx = await getTeamCtx(teamId);
+  const members = await memberList(ctx);
+  const person = members.find((m) => m.user_id === to);
+  if (!person) return { ok: false, error: 'Choose who to ask' };
+  const { data: task } = await ctx.sb.from('tp_tasks').select('id, title').eq('id', taskId).maybeSingle();
+  if (!task) return { ok: false, error: 'Task not found' };
+  message = String(message || '').trim();
+
+  const { data, error } = await ctx.sb.from('tp_followups').insert({
+    team_id: ctx.team.id, task_id: taskId, from_user: ctx.user.id, from_name: ctx.name,
+    to_user: person.user_id, message: message || null, due_date: due || null,
+  }).select().single();
+  if (error) {
+    return { ok: false, error: /tp_followups/i.test(error.message) ? 'Run supabase/followups.sql in the Supabase SQL editor to switch follow-ups on.' : error.message };
+  }
+  await log(ctx, taskId, 'follow_up_asked', `${person.name || person.email}${message ? `: ${message}` : ''}`);
+
+  if (person.email && person.user_id !== ctx.user.id) {
+    const base = await siteUrl();
+    await sendMail({
+      to: person.email, subject: `Follow-up requested: ${task.title}`,
+      html: `<p>${ctx.name} asked you to follow up on <b>${task.title}</b>.</p>${message ? `<p>“${message}”</p>` : ''}${due ? `<p>Please reply by ${due}.</p>` : ''}<p><a href="${base}/t/${ctx.team.id}">Open the Review tab</a></p>`,
+    });
+  }
+  return { ok: true, followup: data };
+}
+
+export async function completeFollowUp({ teamId, id, reply = '' }) {
+  const ctx = await getTeamCtx(teamId);
+  reply = String(reply || '').trim();
+  const { data, error } = await ctx.sb.from('tp_followups')
+    .update({ status: 'done', reply: reply || null, done_at: new Date().toISOString() }).eq('id', id).select().single();
+  if (error) return { ok: false, error: error.message };
+  await log(ctx, data.task_id, 'follow_up_done', reply || null);
+
+  if (data.from_user && data.from_user !== ctx.user.id) {
+    const asker = (await memberList(ctx)).find((m) => m.user_id === data.from_user);
+    const { data: task } = await ctx.sb.from('tp_tasks').select('title').eq('id', data.task_id).maybeSingle();
+    if (asker?.email) {
+      const base = await siteUrl();
+      await sendMail({
+        to: asker.email, subject: `Follow-up done: ${task?.title || 'task'}`,
+        html: `<p>${ctx.name} followed up on <b>${task?.title || 'your task'}</b>.</p>${reply ? `<p>“${reply}”</p>` : ''}<p><a href="${base}/t/${ctx.team.id}">Open the task</a></p>`,
+      });
+    }
+  }
+  return { ok: true, followup: data };
+}

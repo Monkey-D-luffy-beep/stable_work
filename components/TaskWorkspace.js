@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { addTaskQuick, patchTaskQuick, removeTaskQuick, requestReviewQuick, decideReviewQuick } from '@/app/actions';
+import { addTaskQuick, patchTaskQuick, removeTaskQuick, requestReviewQuick, decideReviewQuick, askFollowUp, completeFollowUp } from '@/app/actions';
 import { STATUS, URGENCY, fmtDate } from '@/lib/util';
 import { addDays, layoutWeek, parseISO, toISO, weekStartOf } from '@/lib/timeline';
 import { defaultAvatar } from '@/lib/avatars';
@@ -17,6 +17,10 @@ const COLS = [
 const colOf = (s) => (s === 'todo' ? 'todo' : s === 'done' ? 'done' : 'progress');
 const todayStr = () => toISO(new Date());
 const short = (d) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+const ageDays = (ts) => (ts ? Math.floor((Date.now() - new Date(ts)) / 864e5) : 0);
+const ageLabel = (ts) => { const d = ageDays(ts); return d <= 0 ? 'today' : d === 1 ? '1 day' : `${d} days`; };
+const isStale = (ts) => ageDays(ts) >= 2;
+
 const byUrgency = (a, b) => URGENCY[a.urgency] - URGENCY[b.urgency] || (a.deadline || '9999').localeCompare(b.deadline || '9999');
 
 // Ready-made feedback people can tap, then edit.
@@ -24,9 +28,10 @@ const FEEDBACK_OK = ['Looks good, approved', 'Great work', 'Approved, please sha
 const FEEDBACK_FIX = ['Please add more detail', 'Documents are missing or incorrect', 'Check the figures and resubmit', 'Needs a fix, then send it back for review'];
 
 // Search, person filter and view switching all happen in the browser, so they are instant.
-export default function TaskWorkspace({ teamId, initialTasks, members, userId, isManager }) {
+export default function TaskWorkspace({ teamId, initialTasks, initialFollowups = [], members, userId, isManager }) {
   const router = useRouter();
   const [tasks, setTasks] = useState(initialTasks);
+  const [followups, setFollowups] = useState(initialFollowups);
   const [view, setView] = useState(isManager ? 'board' : 'focus');
   const [person, setPerson] = useState(isManager ? 'all' : 'me');
   const [scope, setScope] = useState('open');
@@ -47,7 +52,7 @@ export default function TaskWorkspace({ teamId, initialTasks, members, userId, i
   const changeView = (v) => { setView(v); try { localStorage.setItem('sw-view', v); } catch {} };
 
   // Pick up fresh server data (after a refresh) unless a change is still being saved.
-  useEffect(() => { if (!inflight.current) setTasks(initialTasks); }, [initialTasks]);
+  useEffect(() => { if (!inflight.current) { setTasks(initialTasks); setFollowups(initialFollowups); } }, [initialTasks, initialFollowups]);
   useEffect(() => {
     const refresh = () => { if (document.visibilityState === 'visible' && !inflight.current) router.refresh(); };
     document.addEventListener('visibilitychange', refresh);
@@ -59,6 +64,12 @@ export default function TaskWorkspace({ teamId, initialTasks, members, userId, i
   const memberOf = (id) => members.find((x) => x.user_id === id);
   const nameOf = (id) => { const m = memberOf(id); return m ? m.name || m.email : 'Unassigned'; };
   const avatarOf = (id) => { const m = memberOf(id); return m ? m.avatar || defaultAvatar(m.email) : null; };
+  // Names the person whose review is pending. Older tasks with no reviewer chosen show the people who can review.
+  const reviewerLabel = (t) => {
+    if (t.reviewer_id) return nameOf(t.reviewer_id);
+    const names = members.filter((m) => m.role === 'manager').map((m) => (m.name || m.email).split(' ')[0]);
+    return names.length ? names.slice(0, 2).join(' or ') : 'the team';
+  };
   const who = (t) => (t.for_team ? 'Whole team' : t.assignee_id ? nameOf(t.assignee_id) : 'Unassigned');
   const canEdit = (t) => isManager || t.assignee_id === userId || t.created_by === userId || t.for_team;
   const isOver = (t) => !!t.deadline && t.status !== 'done' && t.deadline < today;
@@ -95,6 +106,30 @@ export default function TaskWorkspace({ teamId, initialTasks, members, userId, i
       ? { ...t, status: 'done', review_note: feedback || null, completed_at: new Date().toISOString() }
       : { ...t, status: 'changes_requested', review_note: feedback, completed_at: null }),
     () => decideReviewQuick({ teamId, id, decision, feedback }));
+
+  async function ask(taskId, to, message, due) {
+    const tmp = `tmp-${Date.now()}`;
+    const me = memberOf(userId);
+    setFollowups((fs) => [{ id: tmp, team_id: teamId, task_id: taskId, from_user: userId, from_name: me?.name || 'You', to_user: to, message: message || null, due_date: due || null, status: 'open', created_at: new Date().toISOString(), pending: true }, ...fs]);
+    inflight.current++;
+    try {
+      const r = await askFollowUp({ teamId, taskId, to, message, due });
+      if (r.ok) setFollowups((fs) => fs.map((f) => (f.id === tmp ? r.followup : f)));
+      else { setFollowups((fs) => fs.filter((f) => f.id !== tmp)); setErr(r.error || 'Could not send the follow-up'); }
+    } catch { setFollowups((fs) => fs.filter((f) => f.id !== tmp)); setErr('Could not send. Check your connection.'); }
+    finally { inflight.current--; }
+  }
+
+  async function finishFollowUp(id, reply) {
+    const before = followups;
+    setFollowups((fs) => fs.map((f) => (f.id === id ? { ...f, status: 'done', reply: reply || null, done_at: new Date().toISOString() } : f)));
+    inflight.current++;
+    try {
+      const r = await completeFollowUp({ teamId, id, reply });
+      if (!r.ok) { setFollowups(before); setErr(r.error || 'Could not save'); }
+    } catch { setFollowups(before); setErr('Could not save. Check your connection.'); }
+    finally { inflight.current--; }
+  }
 
   async function add(title, colId, assignee, extra = {}) {
     const status = COLS.find((c) => c.id === colId)?.status || 'todo';
@@ -142,6 +177,14 @@ export default function TaskWorkspace({ teamId, initialTasks, members, userId, i
 
   const open = tasks.filter((t) => t.status !== 'done');
   const myReviews = tasks.filter((t) => t.status === 'review' && (t.reviewer_id === userId || (isManager && !t.reviewer_id)));
+  const openFollowups = followups.filter((f) => f.status === 'open');
+  const myFollowups = openFollowups.filter((f) => f.to_user === userId);
+  const pendingMine = myReviews.length + myFollowups.length;
+  const reviewsElsewhere = tasks.filter((t) => t.status === 'review' && !myReviews.some((r) => r.id === t.id));
+  const followupsElsewhere = openFollowups.filter((f) => f.to_user !== userId);
+  const teamPending = isManager ? reviewsElsewhere.length + followupsElsewhere.length : 0;
+  const taskOf = (id) => tasks.find((t) => t.id === id);
+
   const stats = [
     ['Open', open.length, true],
     ['Overdue', open.filter(isOver).length, false, open.some(isOver) && 'var(--red)'],
@@ -277,6 +320,79 @@ export default function TaskWorkspace({ teamId, initialTasks, members, userId, i
     </div>
   );
 
+  /* ---------------- review: reviews and follow-ups ---------------- */
+
+  const reviewRow = (t, actions) => (
+    <div key={t.id} className="rv-row">
+      <button type="button" className="rv-main" onClick={() => setOpenId(t.id)}>
+        <span className="rv-title">{t.title}</span>
+        <span className="rv-meta">
+          <span className={`tag ${t.urgency}`}>{t.urgency}</span>
+          <span>{t.assignee_id ? `from ${nameOf(t.assignee_id)}` : who(t)}</span>
+          <span className={isStale(t.review_requested_at || t.updated_at) ? 'stale' : ''}>waiting {ageLabel(t.review_requested_at || t.updated_at)}</span>
+        </span>
+      </button>
+      {actions}
+    </div>
+  );
+
+  const followRow = (f, mine) => {
+    const t = taskOf(f.task_id);
+    return (
+      <FollowRow key={f.id} f={f} task={t} mine={mine} nameOf={nameOf}
+        onOpen={() => t && setOpenId(t.id)} onDone={(reply) => finishFollowUp(f.id, reply)} />
+    );
+  };
+
+  const section = (title, count, children, tone = '') => count > 0 && (
+    <section className={`fc-group ${tone}`}>
+      <header className="tl-head"><h3>{title}</h3><span className="n">{count}</span></header>
+      <div className="fc-rows">{children}</div>
+    </section>
+  );
+
+  const asked = tasks.filter((t) => t.status === 'review' && !myReviews.some((r) => r.id === t.id) && (t.assignee_id === userId || t.created_by === userId));
+  const mineAsked = openFollowups.filter((f) => f.from_user === userId && f.to_user !== userId);
+  const changesForMe = tasks.filter((t) => t.status === 'changes_requested' && (t.assignee_id === userId || t.for_team || t.created_by === userId));
+  const recentlyApproved = tasks.filter((t) => t.status === 'done' && t.review_note && t.completed_at && ageDays(t.completed_at) <= 7).slice(0, 5);
+  const everythingEmpty = !pendingMine && !teamPending && !asked.length && !mineAsked.length && !changesForMe.length && !recentlyApproved.length;
+
+  const reviewView = everythingEmpty ? (
+    <div className="panel empty">Nothing waiting on anyone. 🎉<br />
+      <span className="sub">Open any task and choose “Request review” or “Ask for a follow-up” to start.</span></div>
+  ) : (
+    <div className="fc">
+      {section('Needs your review', myReviews.length, myReviews.map((t) => reviewRow(t,
+        <div className="rv-actions">
+          <button type="button" className="btn primary sm" onClick={() => decide(t.id, 'approve', '')}>Approve</button>
+          <button type="button" className="btn sm" onClick={() => setOpenId(t.id)}>Give feedback</button>
+        </div>)), 'review')}
+      {section('Follow-ups for you', myFollowups.length, myFollowups.map((f) => followRow(f, true)), 'today')}
+      {section('Changes requested on your work', changesForMe.length, changesForMe.map((t) => (
+        <div key={t.id} className="rv-row warn">
+          <button type="button" className="rv-main" onClick={() => setOpenId(t.id)}>
+            <span className="rv-title">{t.title}</span>
+            <span className="rv-meta"><span>{t.reviewer_id ? `${nameOf(t.reviewer_id)} says` : 'Feedback'}:</span><em>“{t.review_note || 'No note left'}”</em></span>
+          </button>
+        </div>)), 'late')}
+      {isManager && section('Pending across the team', teamPending, [
+        ...reviewsElsewhere.map((t) => reviewRow(t, <span className="rv-with">with {reviewerLabel(t)}</span>)),
+        ...followupsElsewhere.map((f) => followRow(f, false)),
+      ])}
+      {section('Waiting on others', asked.length + mineAsked.length, [
+        ...asked.map((t) => reviewRow(t, <span className="rv-with">with {reviewerLabel(t)}</span>)),
+        ...mineAsked.map((f) => followRow(f, false)),
+      ])}
+      {section('Recently approved', recentlyApproved.length, recentlyApproved.map((t) => (
+        <div key={t.id} className="rv-row ok">
+          <button type="button" className="rv-main" onClick={() => setOpenId(t.id)}>
+            <span className="rv-title">{t.title}</span>
+            <span className="rv-meta"><span>{t.reviewer_id ? `Approved by ${nameOf(t.reviewer_id)}` : 'Approved'}</span><em>“{t.review_note}”</em></span>
+          </button>
+        </div>)))}
+    </div>
+  );
+
   /* ---------------- focus: what needs me, in order ---------------- */
 
   const focusGroups = useMemo(() => {
@@ -357,21 +473,22 @@ export default function TaskWorkspace({ teamId, initialTasks, members, userId, i
         ))}
       </div>
 
-      {myReviews.length > 0 && (
-        <section className="panel attention">
-          <h3>Waiting for your review ({myReviews.length})</h3>
-          {myReviews.map((t) => (
-            <button key={t.id} type="button" className="mini mini-btn" onClick={() => setOpenId(t.id)}>
-              <span className="t">{t.title}</span><span className="sub">from {t.assignee_id ? nameOf(t.assignee_id) : who(t)}</span>
-            </button>
-          ))}
-        </section>
+      {view !== 'review' && (pendingMine > 0 || teamPending > 0) && (
+        <button type="button" className="pending-banner" onClick={() => changeView('review')}>
+          <span className="pb-dot" />
+          <span>
+            {pendingMine > 0 && <b>{[myReviews.length && `${myReviews.length} review${myReviews.length === 1 ? '' : 's'}`, myFollowups.length && `${myFollowups.length} follow-up${myFollowups.length === 1 ? '' : 's'}`].filter(Boolean).join(' and ')} waiting for you</b>}
+            {pendingMine > 0 && teamPending > 0 && <span> · </span>}
+            {teamPending > 0 && <span>{teamPending} more pending with others</span>}
+          </span>
+          <span className="pb-go">Open Review →</span>
+        </button>
       )}
 
       <div className="ws-bar">
         <div className="tabs" role="tablist">
-          {[['focus', 'Focus'], ['board', 'Board'], ['timeline', 'Timeline'], ['list', 'List']].map(([k, l]) => (
-            <button key={k} role="tab" aria-selected={view === k} className={view === k ? 'on' : ''} onClick={() => changeView(k)}>{l}</button>
+          {[['focus', 'Focus'], ['board', 'Board'], ['timeline', 'Timeline'], ['list', 'List'], ['review', 'Review']].map(([k, l]) => (
+            <button key={k} role="tab" aria-selected={view === k} className={view === k ? 'on' : ''} onClick={() => changeView(k)}>{l}{k === 'review' && pendingMine + teamPending > 0 && <i className="tab-badge">{pendingMine + teamPending}</i>}</button>
           ))}
         </div>
         <input className="ws-search" type="search" placeholder="Search tasks…" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -390,11 +507,14 @@ export default function TaskWorkspace({ teamId, initialTasks, members, userId, i
         )}
       </div>
 
-      {view === 'focus' ? focusView : view === 'board' ? board : view === 'timeline' ? timeline : listView}
+      {view === 'focus' ? focusView : view === 'board' ? board : view === 'timeline' ? timeline : view === 'review' ? reviewView : listView}
 
       {selected && (
         <TaskSheet key={selected.id} task={selected} teamId={teamId} members={members} isManager={isManager} userId={userId}
-          editable={canEdit(selected)} canDecide={canDecide(selected)} nameOf={nameOf}
+          editable={canEdit(selected)} canDecide={canDecide(selected)} nameOf={nameOf} reviewerLabel={reviewerLabel}
+          followups={followups.filter((f) => f.task_id === selected.id)}
+          onAskFollowUp={(to, message, due) => ask(selected.id, to, message, due)}
+          onFinishFollowUp={finishFollowUp}
           onChange={(patch) => change(selected.id, patch)}
           onAskReview={(reviewer, message) => askReview(selected.id, reviewer, message)}
           onDecide={(decision, feedback) => decide(selected.id, decision, feedback)}
@@ -456,7 +576,7 @@ function TimelineAdd({ isManager, members, userId, onAdd }) {
 }
 
 // Side panel: every field saves as you change it, and reviews are requested and decided here.
-function TaskSheet({ task: t, teamId, members, isManager, userId, editable, canDecide, nameOf, onChange, onAskReview, onDecide, onRemove, onClose }) {
+function TaskSheet({ task: t, teamId, members, isManager, userId, editable, canDecide, nameOf, reviewerLabel, followups, onAskFollowUp, onFinishFollowUp, onChange, onAskReview, onDecide, onRemove, onClose }) {
   useEffect(() => {
     const k = (e) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', k);
@@ -475,6 +595,10 @@ function TaskSheet({ task: t, teamId, members, isManager, userId, editable, canD
   const [reviewer, setReviewer] = useState(t.reviewer_id && pool.some((m) => m.user_id === t.reviewer_id) ? t.reviewer_id : (managers[0] || pool[0])?.user_id || '');
   const [message, setMessage] = useState('');
   const [feedback, setFeedback] = useState('');
+  const [fuOpen, setFuOpen] = useState(false);
+  const [fuTo, setFuTo] = useState((t.assignee_id && t.assignee_id !== userId ? t.assignee_id : others[0]?.user_id) || '');
+  const [fuMsg, setFuMsg] = useState('');
+  const [fuDue, setFuDue] = useState('');
   const addChip = (text) => setFeedback((f) => (f ? `${f.trim()} ${text}` : text));
 
   const field = (label, el) => <label>{label}{el}</label>;
@@ -491,7 +615,7 @@ function TaskSheet({ task: t, teamId, members, isManager, userId, editable, canD
 
         <input className="sheet-title" defaultValue={t.title} disabled={!editable}
           onBlur={(e) => e.target.value.trim() && e.target.value !== t.title && onChange({ title: e.target.value })} />
-        {!editable && <p className="notice">You can view this task, but only its assignee or a manager can change it.</p>}
+        {!editable && <p className="notice">You can view this task. Only the people working on it can change it.</p>}
 
         {/* ---- review ---- */}
         {t.status === 'changes_requested' && (
@@ -505,7 +629,7 @@ function TaskSheet({ task: t, teamId, members, isManager, userId, editable, canD
         )}
         {t.status === 'review' && (
           <div className="review-box">
-            <b>Waiting for review{t.reviewer_id ? ` from ${nameOf(t.reviewer_id)}` : ' from a manager'}</b>
+            <b>Waiting for review from {reviewerLabel(t)}</b>
             {canDecide ? (
               <>
                 <textarea rows="3" value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="Feedback for the team (optional when approving, needed when asking for changes)" />
@@ -562,11 +686,70 @@ function TaskSheet({ task: t, teamId, members, isManager, userId, editable, canD
             onBlur={(e) => e.target.value !== (t.notes || '') && onChange({ notes: e.target.value })} />
         ))}
 
+        <div className="fu-box">
+          <div className="fu-head"><b>Follow-ups</b>
+            {!fuOpen && <button type="button" className="btn sm" onClick={() => setFuOpen(true)}>Ask for a follow-up</button>}</div>
+          {fuOpen && (
+            <div className="stack">
+              <select value={fuTo} onChange={(e) => setFuTo(e.target.value)} aria-label="Ask">
+                {members.filter((m) => m.user_id !== userId).map((m) => <option key={m.user_id} value={m.user_id}>{m.name || m.email}</option>)}
+              </select>
+              <textarea rows="2" value={fuMsg} onChange={(e) => setFuMsg(e.target.value)} placeholder="What should they follow up on? (e.g. Please confirm the BL draft with the shipper)" />
+              <div className="row">
+                <label>Reply by <span className="sub">(optional)</span><input type="date" value={fuDue} onChange={(e) => setFuDue(e.target.value)} /></label>
+              </div>
+              <div className="sheet-actions">
+                <button className="btn primary" disabled={!fuTo} onClick={() => { onAskFollowUp(fuTo, fuMsg, fuDue); setFuOpen(false); setFuMsg(''); setFuDue(''); }}>Send follow-up</button>
+                <button className="btn" onClick={() => setFuOpen(false)}>Cancel</button>
+              </div>
+            </div>
+          )}
+          {followups.length === 0 && !fuOpen && <p className="sub">No follow-ups on this task yet.</p>}
+          {followups.map((f) => (
+            <div key={f.id} className={`fu-item ${f.status}`}>
+              <div><b>{f.from_user === userId ? 'You' : f.from_name || 'Someone'}</b> asked <b>{f.to_user === userId ? 'you' : nameOf(f.to_user)}</b>{f.due_date ? ` · reply by ${fmtDate(f.due_date)}` : ''}</div>
+              {f.message && <p>“{f.message}”</p>}
+              {f.status === 'done'
+                ? <p className="sub">Done{f.reply ? `: “${f.reply}”` : ''}</p>
+                : (f.to_user === userId || f.from_user === userId || isManager) && !f.pending && <button className="btn sm" onClick={() => onFinishFollowUp(f.id, '')}>Mark done</button>}
+            </div>
+          ))}
+        </div>
+
         <div className="sheet-foot">
           <Link href={`/t/${teamId}/tasks/${t.id}`} className="sub"><b>Open full details, follow-up &amp; history →</b></Link>
           {isManager && <button className="btn danger sm" onClick={() => confirm('Delete this task?') && onRemove()}>Delete</button>}
         </div>
       </aside>
+    </div>
+  );
+}
+
+// One follow-up request in the Review tab. The person asked can reply and mark it done.
+function FollowRow({ f, task, mine, nameOf, onOpen, onDone }) {
+  const [replying, setReplying] = useState(false);
+  const [reply, setReply] = useState('');
+  return (
+    <div className={`rv-row ${mine ? 'mine' : ''}`}>
+      <div className="rv-main-wrap">
+        <button type="button" className="rv-main" onClick={onOpen}>
+          <span className="rv-title">{task ? task.title : 'Task'}</span>
+          <span className="rv-meta">
+            <span>{mine ? `${f.from_name || 'Someone'} asked you` : `${f.from_name || 'Someone'} asked ${nameOf(f.to_user)}`}</span>
+            <span className={isStale(f.created_at) ? 'stale' : ''}>{ageLabel(f.created_at)} ago</span>
+            {f.due_date && <span>reply by {fmtDate(f.due_date)}</span>}
+          </span>
+          {f.message && <em className="rv-msg">“{f.message}”</em>}
+        </button>
+        {replying && (
+          <div className="rv-reply">
+            <input autoFocus value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Add a quick reply (optional)"
+              onKeyDown={(e) => { if (e.key === 'Enter') onDone(reply); if (e.key === 'Escape') setReplying(false); }} />
+            <button className="btn primary sm" onClick={() => onDone(reply)}>Send &amp; done</button>
+          </div>
+        )}
+      </div>
+      {mine && !replying && <button type="button" className="btn primary sm" onClick={() => setReplying(true)}>Reply &amp; done</button>}
     </div>
   );
 }

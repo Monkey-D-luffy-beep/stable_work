@@ -8,7 +8,15 @@ import { logout } from '../../actions';
 
 export default async function TeamLayout({ children, params }) {
   const { teamId } = await params;
-  const { team, teams, isManager, name, avatar, user } = await getTeamCtx(teamId);
+  const { sb, team, teams, isManager, name, avatar, user } = await getTeamCtx(teamId);
+
+  // What is waiting: managers see every pending review; everyone sees follow-ups asked of them.
+  const reviewQ = sb.from('tp_tasks').select('id', { count: 'exact', head: true }).eq('team_id', team.id).eq('status', 'review');
+  const [rev, fol] = await Promise.all([
+    isManager ? reviewQ : reviewQ.eq('reviewer_id', user.id),
+    sb.from('tp_followups').select('id', { count: 'exact', head: true }).eq('team_id', team.id).eq('status', 'open').eq('to_user', user.id),
+  ]);
+  const pending = (rev.error ? 0 : rev.count || 0) + (fol.error ? 0 : fol.count || 0);
 
   return (
     <div className="app">
@@ -26,7 +34,7 @@ export default async function TeamLayout({ children, params }) {
         <div className="side-head" style={{ marginTop: 22 }}><span>{team.name}</span><span className={`tag ${isManager ? 'manager' : 'member'}`}>{isManager ? 'manager' : 'member'}</span></div>
         <nav className="nav">
           <Link className="nav-item" href={`/t/${team.id}/dsr`}>DSR</Link>
-          <Link className="nav-item" href={`/t/${team.id}`}>Tasks</Link>
+          <Link className="nav-item" href={`/t/${team.id}`}>Tasks{pending > 0 && <i className="nav-badge" title="Reviews and follow-ups waiting">{pending}</i>}</Link>
           <Link className="nav-item" href={`/t/${team.id}/members`}>{isManager ? 'Members & settings' : 'Members'}</Link>
         </nav>
         <Link href="/profile" className="me-chip"><Avatar src={avatar || defaultAvatar(user.email)} name={name} size={32} /><span><b>{name}</b><small>Edit profile</small></span></Link>

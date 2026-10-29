@@ -7,9 +7,10 @@ export default async function Tasks({ params, searchParams }) {
   const { welcome } = await searchParams;
   const { sb, user, team, isManager } = await getTeamCtx(teamId);
 
-  const [{ data: tasks }, { data: members }] = await Promise.all([
+  const [{ data: tasks }, { data: members }, { data: followups }] = await Promise.all([
     sb.from('tp_tasks').select('*').eq('team_id', team.id).order('created_at', { ascending: false }).limit(1500),
     sb.from('tp_members').select('*').eq('team_id', team.id).order('created_at'),
+    sb.from('tp_followups').select('*').eq('team_id', team.id).order('created_at', { ascending: false }).limit(300),
   ]);
 
   return (
@@ -25,7 +26,7 @@ export default async function Tasks({ params, searchParams }) {
       {welcome && <p className="notice">Welcome to {team.name}! Add your first task with “+ Add task”, or open DSR to see the team’s shipments.</p>}
 
       <TaskWorkspace
-        teamId={team.id} initialTasks={tasks || []} members={members || []}
+        teamId={team.id} initialTasks={tasks || []} initialFollowups={followups || []} members={members || []}
         userId={user.id} isManager={isManager}
       />
     </>

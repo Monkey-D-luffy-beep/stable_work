@@ -14,6 +14,8 @@ const LABEL = {
   changes_requested: 'requested changes',
   follow_up_set: 'set a follow-up',
   follow_up_cleared: 'cleared the follow-up',
+  follow_up_asked: 'asked for a follow-up from',
+  follow_up_done: 'completed a follow-up',
 };
 
 export default async function TaskPage({ params }) {
