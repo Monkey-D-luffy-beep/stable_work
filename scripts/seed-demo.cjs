@@ -7,7 +7,9 @@ const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
 
 const OWNER = process.env.DEMO_OWNER_EMAIL || 'saurav.chaudhary70@gmail.com';
-const TEAM_NAME = 'Demo: Export Operations';
+const TEAM_NAME = 'Demo';
+const OLD_NAMES = ['Demo', 'Demo: Export Operations'];
+const SAMPLE_DESC = 'Sample team with realistic freight-forwarding work.';
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
 const DAY = 864e5;
@@ -37,7 +39,7 @@ async function hasColumn(table, col) { return !(await db.from(table).select(col)
 async function remove() {
   const users = await allUsers();
   const owner = users.find((u) => u.email?.toLowerCase() === OWNER);
-  const { data: teams } = await db.from('tp_teams').select('id').eq('name', TEAM_NAME).eq('created_by', owner?.id);
+  const { data: teams } = await db.from('tp_teams').select('id').in('name', OLD_NAMES).eq('created_by', owner?.id).like('description', `${SAMPLE_DESC}%`);
   for (const t of teams || []) await db.from('tp_teams').delete().eq('id', t.id);   // cascades members, tasks, history, shipments
   const demo = users.filter((u) => u.user_metadata?.demo === true && /^demo\..+@example\.com$/.test(u.email || ''));
   for (const u of demo) { await db.from('profiles').delete().eq('id', u.id); await db.auth.admin.deleteUser(u.id); }
@@ -49,7 +51,7 @@ async function create() {
   const owner = users.find((u) => u.email?.toLowerCase() === OWNER);
   if (!owner) throw new Error(`No account found for ${OWNER}`);
 
-  const { data: existing } = await db.from('tp_teams').select('id').eq('name', TEAM_NAME).eq('created_by', owner.id).limit(1);
+  const { data: existing } = await db.from('tp_teams').select('id').in('name', OLD_NAMES).eq('created_by', owner.id).like('description', `${SAMPLE_DESC}%`).limit(1);
   if (existing?.length) { console.log('The demo team already exists. Run with --remove first to recreate it.'); return; }
 
   const cols = {
@@ -78,7 +80,7 @@ async function create() {
 
   // --- team ---
   const { data: team, error: te } = await db.from('tp_teams').insert({
-    name: TEAM_NAME, description: 'Sample team with realistic freight-forwarding work. Safe to delete.',
+    name: TEAM_NAME, description: `${SAMPLE_DESC} Safe to delete.`,
     avatar: 'ship', created_by: owner.id, ...(cols.join ? { join_token: crypto.randomBytes(9).toString('hex') } : {}),
   }).select().single();
   if (te) throw te;
@@ -101,21 +103,11 @@ async function create() {
       { reviewer: 'me', note: 'Consignee address is missing the PIN code, and the shipper reference should match the invoice.', requested: -2 }],
     ['Freight booking: Nhava Sheva to Rotterdam', '2 x 40HQ. Compare MSC, Maersk and CMA CGM rates before booking.', 'medium', 'todo', 'rahul', 0, 6, 1],
     ['Marketing: LinkedIn campaign for the DSR launch', 'Three posts plus one short video. Draft copy first.', 'medium', 'in_progress', 'neha', -2, 5, 4],
-    ['Website update: shipment tracking page', 'Add live status and ETA fields to the tracking page.', 'low', 'in_progress', 'neha', -5, 9, 8],
     ['Follow up with MSC on container release', 'Release order still pending. Escalate if no reply today.', 'urgent', 'todo', 'rahul', -2, -1, 3, { follow: 0, followNote: 'Call MSC ops desk' }],
-    ['Reconcile Q3 freight invoices', 'Match carrier invoices against job costing sheets.', 'high', 'todo', 'amit', -10, -3, 12],
     ['Weekly DSR update to key customers', 'Send the Friday status email to all active shippers.', 'medium', 'todo', 'team', 0, 2, 2],
     ['Quote: Chennai to Singapore, 4 x 40HQ', 'Quote sent and accepted by the customer.', 'medium', 'done', 'rahul', -9, -4, 10, { completed: -4 }],
-    ['Insurance certificate for Contoso shipment', 'Certificate issued and shared with the consignee.', 'medium', 'done', 'priya', -8, -5, 9, { completed: -5, reviewer: 'me', note: 'Looks good, approved.', approved: true }],
-    ['Update customs tariff sheet (HS codes)', 'Internal reference sheet. No hurry.', 'low', 'todo', 'priya', null, null, 6],
-    ['Prepare festive greetings for clients', 'Short email plus a branded card.', 'low', 'todo', 'neha', 0, 8, 2],
-    ['Shipper onboarding: Fabrikam Auto Parts KYC', 'IEC, GST and bank details collected. Waiting on the signed agreement.', 'high', 'in_progress', 'priya', -2, 3, 3, { follow: 2, followNote: 'Chase the signed agreement' }],
-    ['Arrange trucking: Mundra port to ICD Tughlakabad', 'Two trailers. Confirm the pick-up window with the transporter.', 'high', 'todo', 'rahul', 1, 4, 1],
-    ['Monthly management report', 'Revenue, margins and open jobs.', 'medium', 'todo', 'me', 6, 10, 2],
     ['Client call: freight rate review with Northwind Exports', 'Agenda: Q4 rates, space commitments, payment terms.', 'medium', 'todo', 'me', 0, 1, 2, { follow: 3, followNote: 'Send the call summary' }],
-    ['Audit: pending BRO (booking release orders)', 'List every job where BRO is not yet received.', 'high', 'in_progress', 'amit', -3, 2, 4],
     ['Fix HBL numbering sequence in templates', 'Sequence restarts at the wrong prefix. Needs a second pair of eyes.', 'low', 'review', 'rahul', -4, 3, 5, { reviewer: 'priya', requested: -1 }],
-    ['Collect signed PODs for Delhi deliveries', 'Eleven deliveries last week. PODs outstanding for four.', 'medium', 'todo', 'priya', 0, 7, 2],
   ];
 
   const taskRows = T.map(([title, notes, urgency, status, who, start, deadline, createdAgo, x = {}]) => {
