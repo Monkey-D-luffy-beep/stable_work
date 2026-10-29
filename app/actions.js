@@ -396,3 +396,94 @@ export async function importShipments(fd) {
   revalidatePath(`/t/${ctx.team.id}/dsr`);
   back(`Imported ${rows.length} shipment${rows.length === 1 ? '' : 's'}.`);
 }
+
+/* ---------- fast task actions: no redirect or page reload, the client updates itself ---------- */
+
+const URGENCIES = ['low', 'medium', 'high', 'urgent'];
+const STATUSES = Object.keys(STATUS);
+
+export async function addTaskQuick({ teamId, title, status = 'todo', urgency = 'medium', deadline = null, assignee = '' }) {
+  const ctx = await getTeamCtx(teamId);
+  title = String(title || '').trim();
+  if (!title) return { ok: false, error: 'Give the task a title' };
+  if (!STATUSES.includes(status)) status = 'todo';
+  const now = new Date().toISOString();
+
+  // Ignore an identical task created moments ago (double-click / retry).
+  const { data: dupe } = await ctx.sb.from('tp_tasks').select('*').eq('team_id', ctx.team.id)
+    .eq('created_by', ctx.user.id).eq('title', title).gte('created_at', new Date(Date.now() - 4000).toISOString()).limit(1);
+  if (dupe?.length) return { ok: true, task: dupe[0] };
+
+  const { data, error } = await ctx.sb.from('tp_tasks').insert({
+    team_id: ctx.team.id, title, status, created_by: ctx.user.id,
+    urgency: URGENCIES.includes(urgency) ? urgency : 'medium', deadline: deadline || null,
+    completed_at: status === 'done' ? now : null, ...resolveAssignee(ctx, assignee),
+  }).select().single();
+  if (error) return { ok: false, error: error.message };
+  await log(ctx, data.id, 'created', data.for_team ? 'Assigned to the whole team' : null);
+  return { ok: true, task: data };
+}
+
+export async function patchTaskQuick({ teamId, id, patch = {} }) {
+  const ctx = await getTeamCtx(teamId);
+  const { data: old } = await ctx.sb.from('tp_tasks').select('*').eq('id', id).maybeSingle();
+  if (!old) return { ok: false, error: 'Task not found' };
+
+  const next = {};
+  const changes = [];
+  if ('title' in patch) {
+    const v = String(patch.title || '').trim();
+    if (v && v !== old.title) { next.title = v; changes.push(`title → ${v}`); }
+  }
+  if ('notes' in patch) {
+    const v = String(patch.notes || '').trim() || null;
+    if (v !== (old.notes || null)) { next.notes = v; changes.push('notes edited'); }
+  }
+  if ('urgency' in patch && URGENCIES.includes(patch.urgency) && patch.urgency !== old.urgency) {
+    next.urgency = patch.urgency; changes.push(`urgency ${old.urgency} → ${patch.urgency}`);
+  }
+  if ('deadline' in patch) {
+    const v = patch.deadline || null;
+    if (v !== (old.deadline || null)) { next.deadline = v; changes.push(`deadline ${old.deadline || 'none'} → ${v || 'none'}`); }
+  }
+  if ('assignee' in patch && ctx.isManager) {
+    const a = resolveAssignee(ctx, patch.assignee);
+    if (a.assignee_id !== old.assignee_id || a.for_team !== old.for_team) { Object.assign(next, a); changes.push('reassigned'); }
+  }
+  let review = null;
+  if ('status' in patch && STATUSES.includes(patch.status) && patch.status !== old.status) {
+    next.status = patch.status;
+    next.completed_at = patch.status === 'done' ? old.completed_at || new Date().toISOString() : null;
+    if (patch.status === 'review') review = 'review_requested';
+    else if (old.status === 'review' && patch.status === 'done') review = 'review_approved';
+    else if (old.status === 'review' && ['in_progress', 'changes_requested', 'todo'].includes(patch.status) && ctx.isManager) review = 'changes_requested';
+    else changes.push(`status ${STATUS[old.status]} → ${STATUS[patch.status]}`);
+    if (next.status === 'review') next.review_requested_at = new Date().toISOString();
+  }
+  if (!Object.keys(next).length) return { ok: true, task: old };
+
+  next.updated_at = new Date().toISOString();
+  const { data, error } = await ctx.sb.from('tp_tasks').update(next).eq('id', id).select().single();
+  if (error) return { ok: false, error: error.message };
+
+  if (changes.length) await log(ctx, id, 'updated', changes.join('; '));
+  if (review) await log(ctx, id, review, null);
+
+  if (review === 'review_requested') {
+    const base = await siteUrl();
+    for (const m of (await memberList(ctx)).filter((x) => x.role === 'manager' && x.email && x.user_id !== ctx.user.id)) {
+      await sendMail({
+        to: m.email, subject: `Review requested: ${data.title}`,
+        html: `<p>${ctx.name} asked for a review of <b>${data.title}</b>.</p><p><a href="${base}/t/${ctx.team.id}/tasks/${id}">Open task</a></p>`,
+      });
+    }
+  }
+  return { ok: true, task: data };
+}
+
+export async function removeTaskQuick({ teamId, id }) {
+  const ctx = await getTeamCtx(teamId);
+  if (!ctx.isManager) return { ok: false, error: 'Only managers can delete tasks' };
+  const { error } = await ctx.sb.from('tp_tasks').delete().eq('id', id).eq('team_id', ctx.team.id);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}

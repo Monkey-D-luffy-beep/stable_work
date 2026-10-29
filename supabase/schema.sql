@@ -86,11 +86,9 @@ create policy tp_invites_select on tp_invites for select using (tp_is_manager(te
 create policy tp_invites_insert on tp_invites for insert with check (tp_is_manager(team_id));
 create policy tp_invites_delete on tp_invites for delete using (tp_is_manager(team_id));
 
--- Managers see everything; members see tasks assigned to them, created by them, or given to the whole team.
-create policy tp_tasks_select on tp_tasks for select using (
-  tp_is_manager(team_id)
-  or (tp_is_member(team_id) and (assignee_id = auth.uid() or created_by = auth.uid() or for_team))
-);
+-- Everyone in a team can see every task in it (team overview).
+-- Editing is limited: managers edit anything; members edit tasks assigned to them, created by them, or given to the whole team.
+create policy tp_tasks_select on tp_tasks for select using (tp_is_member(team_id));
 create policy tp_tasks_insert on tp_tasks for insert with check (tp_is_member(team_id) and created_by = auth.uid());
 create policy tp_tasks_update on tp_tasks for update using (
   tp_is_manager(team_id)

@@ -13,14 +13,14 @@ const Icon = ({ name }) => <span className="ico"><svg viewBox="0 0 24 24" aria-h
 const FEATURES = [
   ['users', 'A team for every project', 'Create a team per project, pick a team picture, and invite exactly the people who belong on it. One person can be in many teams.'],
   ['shield', 'Assign to a person or the whole team', 'Give a task to one teammate or to everyone at once, so it is always clear who owns what.'],
-  ['flag', 'Urgency and deadlines', 'Mark tasks low to urgent, add a deadline if there is one, and attach notes. Overdue work is highlighted so it never hides.'],
+  ['flag', 'Board, timeline and list', 'Drag tasks across To do, In progress and Done, or switch to a clean week-by-week timeline. Urgency, deadlines and notes are one click away, and overdue work stands out.'],
   ['check', 'Reviews when you need them', 'Ask a teammate to look over finished work. They can approve it or send it back with comments, and you are notified by email.'],
   ['bell', 'Follow-ups that stick', 'Set a follow-up date and reminder note on any task so nothing is forgotten once it leaves your hands.'],
   ['history', 'Complete task history', 'Every change, note, review and follow-up is recorded with who did it and when, so you can always see what happened.'],
 ];
 
 const FAQ = [
-  ['Who can see which tasks?', 'Everyone in a team sees the tasks assigned to them or to the whole team. Team leads can see every task in the team.'],
+  ['Who can see which tasks?', 'Everyone in a team can see all of the team's tasks in the overview. You can edit your own tasks and ones shared with the whole team, and team leads can edit any task.'],
   ['Can I be in more than one team?', 'Yes. Create a team for each project and switch between them from the sidebar.'],
   ['Can I bring in my existing shipment sheet?', 'Yes. Copy the rows from Excel or Google Sheets, paste them into the DSR import box and they are added in one go. You can export the DSR to CSV at any time.'],
   ['How do invites work?', 'Enter email addresses when creating a team, or later from the Members page. Each person gets a link by email, and you can also copy the link directly.'],
