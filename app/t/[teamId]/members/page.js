@@ -3,7 +3,8 @@ import { getTeamCtx } from '@/lib/ctx';
 import { siteUrl } from '@/lib/site';
 import TeamAvatar from '@/components/TeamAvatar';
 import AvatarPicker from '@/components/AvatarPicker';
-import { updateTeam, inviteMembers, removeMember, revokeInvite, sendReportNow, deleteTeam } from '../../../actions';
+import CopyLink from '@/components/CopyLink';
+import { updateTeam, inviteMembers, removeMember, revokeInvite, sendReportNow, deleteTeam, rotateJoinLink, toggleJoinLink } from '../../../actions';
 
 export default async function Members({ params, searchParams }) {
   const { teamId } = await params;
@@ -60,6 +61,29 @@ export default async function Members({ params, searchParams }) {
 
         {isManager && (
           <div className="stack">
+            <section id="invite-link" className="panel stack join-panel">
+              <h3>Quick join link</h3>
+              {team.join_token === undefined ? (
+                <p className="sub">One-time setup: run <b>supabase/join-link.sql</b> in the Supabase SQL editor to switch this on.</p>
+              ) : !team.join_token ? (
+                <>
+                  <p className="sub">Create a link anyone can open to make an account and join this team in one step.</p>
+                  <form action={rotateJoinLink}>{hidden}<SubmitButton className="btn primary" pendingText="Creating…">Create invite link</SubmitButton></form>
+                </>
+              ) : (
+                <>
+                  <p className="sub">{team.join_enabled === false ? 'The link is switched off. Turn it on to let people join.' : 'Share this link. New people create an account and join in one step, no email needed.'}</p>
+                  <CopyLink url={`${base}/j/${team.join_token}`} shareText={`Join ${team.name} on Stableworks:`} />
+                  <div className="actions">
+                    <form action={toggleJoinLink}>{hidden}<input type="hidden" name="enable" value={team.join_enabled === false ? '1' : '0'} />
+                      <SubmitButton className="btn sm">{team.join_enabled === false ? 'Turn link on' : 'Turn link off'}</SubmitButton></form>
+                    <form action={rotateJoinLink}>{hidden}<SubmitButton className="btn sm" pendingText="Replacing…">Replace link</SubmitButton></form>
+                  </div>
+                  <p className="sub">Anyone with the link can join as a member. Replace it if it is shared by mistake.</p>
+                </>
+              )}
+            </section>
+
             <form action={inviteMembers} id="invite" className="panel stack">
               {hidden}
               <h3>Invite people</h3>

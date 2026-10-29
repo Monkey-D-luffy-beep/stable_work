@@ -21,7 +21,7 @@ export async function middleware(req) {
   const { data: { session } } = await sb.auth.getSession();
   const user = session?.user;
   const p = req.nextUrl.pathname;
-  const open = p === '/' || p.startsWith('/login') || p.startsWith('/auth') || p.startsWith('/api/cron');
+  const open = p === '/' || p.startsWith('/j/') || p.startsWith('/login') || p.startsWith('/auth') || p.startsWith('/api/cron');
   if (!user && !open) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';

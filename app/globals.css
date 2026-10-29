@@ -443,3 +443,10 @@ table.dsr thead th { position: sticky; top: 0; }
   .tl-due { min-width: 0; }
   .tl-prog { margin-left: 0; }
 }
+
+/* ---------- join link ---------- */
+.join-panel { border-color: var(--lav); background: linear-gradient(180deg, var(--accent-soft), #fff 70%); }
+.copylink { display: flex; gap: 8px; flex-wrap: wrap; }
+.copylink input { flex: 1 1 220px; font-size: 13px; background: #fff; }
+.join-team { margin-bottom: 18px; }
+@media (max-width: 520px) { .copylink .btn { flex: 1 1 100%; text-align: center; } }

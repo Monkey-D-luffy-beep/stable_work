@@ -147,3 +147,15 @@ create policy tp_shipments_update on tp_shipments for update using (tp_is_member
 create policy tp_shipments_delete on tp_shipments for delete using (tp_is_manager(team_id));
 
 notify pgrst, 'reload schema';
+
+
+
+alter table tp_teams add column if not exists join_token text;
+alter table tp_teams add column if not exists join_enabled boolean not null default true;
+
+-- Existing teams get a link straight away.
+update tp_teams set join_token = encode(gen_random_bytes(9), 'hex') where join_token is null;
+
+create unique index if not exists tp_teams_join_token_key on tp_teams(join_token);
+
+notify pgrst, 'reload schema';

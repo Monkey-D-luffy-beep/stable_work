@@ -2,8 +2,9 @@ import Link from 'next/link';
 import { getTeamCtx } from '@/lib/ctx';
 import TaskWorkspace from '@/components/TaskWorkspace';
 
-export default async function Tasks({ params }) {
+export default async function Tasks({ params, searchParams }) {
   const { teamId } = await params;
+  const { welcome } = await searchParams;
   const { sb, user, team, isManager } = await getTeamCtx(teamId);
 
   const [{ data: tasks }, { data: members }] = await Promise.all([
@@ -20,6 +21,8 @@ export default async function Tasks({ params }) {
         </div>
         {isManager && <Link href={`/t/${team.id}/members#invite`} className="btn primary topbar-cta">+ Invite people</Link>}
       </header>
+
+      {welcome && <p className="notice">Welcome to {team.name}! Add your first task with “+ Add task”, or open DSR to see the team’s shipments.</p>}
 
       <TaskWorkspace
         teamId={team.id} initialTasks={tasks || []} members={members || []}

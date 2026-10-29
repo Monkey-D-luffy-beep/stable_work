@@ -118,6 +118,7 @@ export async function createTeam(fd) {
     .insert({ name, description: str(fd, 'description') || null, created_by: user.id }).select().single();
   if (error) redirect(`/teams/new?error=${enc(error.message)}`);
   const pic = await saveAvatar(team.id, fd);
+  await db.from('tp_teams').update({ join_token: newToken() }).eq('id', team.id);
   await Promise.all([
     pic.avatar ? db.from('tp_teams').update({ avatar: pic.avatar }).eq('id', team.id) : null,
     db.from('tp_members').insert({
@@ -125,7 +126,7 @@ export async function createTeam(fd) {
     }),
   ]);
   const inv = await sendInvites(db, team, user.email.split('@')[0], parseEmails(str(fd, 'emails')), 'member');
-  redirect(`/t/${team.id}/members?msg=${enc(inv.created ? `Team created. ${inv.created} invite(s) sent.` : 'Team created. Invite your people below.')}`);
+  redirect(`/t/${team.id}/members?msg=${enc(inv.created ? `Team created. ${inv.created} invite(s) sent.` : 'Team created. Share the join link below to bring your people in.')}#invite-link`);
 }
 
 export async function updateTeam(fd) {
@@ -486,4 +487,73 @@ export async function removeTaskQuick({ teamId, id }) {
   if (!ctx.isManager) return { ok: false, error: 'Only managers can delete tasks' };
   const { error } = await ctx.sb.from('tp_tasks').delete().eq('id', id).eq('team_id', ctx.team.id);
   return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+/* ---------- quick join link ---------- */
+
+const newToken = () => crypto.randomUUID().replace(/-/g, '').slice(0, 18);
+
+// Create or replace the team's join link. The old link stops working immediately.
+export async function rotateJoinLink(fd) {
+  const ctx = await getTeamCtx(str(fd, 'teamId'));
+  if (!ctx.isManager) return;
+  const { error } = await admin().from('tp_teams').update({ join_token: newToken(), join_enabled: true }).eq('id', ctx.team.id);
+  revalidatePath(`/t/${ctx.team.id}/members`);
+  if (error) redirect(`/t/${ctx.team.id}/members?msg=${enc('Run supabase/join-link.sql in the SQL editor first.')}`);
+}
+
+export async function toggleJoinLink(fd) {
+  const ctx = await getTeamCtx(str(fd, 'teamId'));
+  if (!ctx.isManager) return;
+  await admin().from('tp_teams').update({ join_enabled: str(fd, 'enable') === '1' }).eq('id', ctx.team.id);
+  revalidatePath(`/t/${ctx.team.id}/members`);
+}
+
+async function teamForToken(token) {
+  if (!token) return null;
+  const { data } = await admin().from('tp_teams').select('*').eq('join_token', token).eq('join_enabled', true).maybeSingle();
+  return data;
+}
+
+// A brand-new person: create the account, sign in and join the team in one step.
+export async function joinWithNewAccount(fd) {
+  const token = str(fd, 'token');
+  const back = (m) => redirect(`/j/${token}?error=${enc(m)}`);
+  const team = await teamForToken(token);
+  if (!team) back('This invite link is no longer active. Ask for a new one.');
+  const name = str(fd, 'name');
+  const email = str(fd, 'email').toLowerCase();
+  const password = (fd.get('password') || '').toString();
+  if (!name) back('Please enter your name');
+  if (!/^\S+@\S+\.\S+$/.test(email)) back('Please enter a valid email');
+  if (password.length < 8) back('Password must be at least 8 characters');
+
+  const db = admin();
+  const { data: created, error } = await db.auth.admin.createUser({
+    email, password, email_confirm: true, user_metadata: { app: 'stableworks', full_name: name },
+  });
+  if (error) {
+    if (/already|registered|exists/i.test(error.message))
+      redirect(`/login?mode=signin&next=${enc(`/j/${token}`)}&error=${enc('You already have an account. Sign in to join the team.')}`);
+    back(error.message);
+  }
+  const sb = await supabaseServer();
+  const { error: e2 } = await sb.auth.signInWithPassword({ email, password });
+  if (e2) back(e2.message);
+  await db.from('tp_members').upsert({ team_id: team.id, user_id: created.user.id, role: 'member', email, name });
+  redirect(`/t/${team.id}?welcome=1`);
+}
+
+// Someone who is already signed in opens the link: one click to join.
+export async function joinAsCurrentUser(fd) {
+  const token = str(fd, 'token');
+  const { user } = await getUser();
+  const team = await teamForToken(token);
+  if (!team) redirect(`/j/${token}?error=${enc('This invite link is no longer active.')}`);
+  const name = user.user_metadata?.full_name || user.email.split('@')[0];
+  await admin().from('tp_members').upsert(
+    { team_id: team.id, user_id: user.id, role: 'member', email: user.email, name },
+    { onConflict: 'team_id,user_id', ignoreDuplicates: true },
+  );
+  redirect(`/t/${team.id}?welcome=1`);
 }
