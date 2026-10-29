@@ -85,8 +85,8 @@ export default function Landing() {
 
       <section className="lp-sec alt" id="dsr">
         <div className="lp-wrap">
-          <div className="lp-head">
-            <h2>Your Daily Shipment Report, built in</h2>
+          <div className="lp-head wide">
+            <h2 className="one-line">Your Daily Shipment Report, built in</h2>
             <p>Keep every shipment in one live table: MBL and HBL, ports, ETD and ETA, BRO status and job status. Search it in a blink, import your existing sheet and export it whenever you need.</p>
           </div>
           <div className="mock dsr-mock" aria-label="Sample DSR table">

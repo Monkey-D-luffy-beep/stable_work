@@ -202,6 +202,24 @@ export async function removeMember(fd) {
   revalidatePath(`/t/${ctx.team.id}/members`);
 }
 
+// Managers can make anyone a manager or step someone back to member. A team always keeps at least one manager.
+export async function setMemberRole(fd) {
+  const ctx = await getTeamCtx(str(fd, 'teamId'));
+  const uid = str(fd, 'userId');
+  const role = str(fd, 'role') === 'manager' ? 'manager' : 'member';
+  if (!ctx.isManager) return;
+  const db = admin();
+  if (role === 'member') {
+    const { data: managers } = await db.from('tp_members').select('user_id').eq('team_id', ctx.team.id).eq('role', 'manager');
+    if ((managers || []).every((m) => m.user_id === uid)) {
+      redirect(`/t/${ctx.team.id}/members?msg=${enc('A team needs at least one manager. Make someone else a manager first.')}`);
+    }
+  }
+  const { data: target } = await db.from('tp_members').update({ role }).eq('team_id', ctx.team.id).eq('user_id', uid).select('name, email').maybeSingle();
+  revalidatePath(`/t/${ctx.team.id}`, 'layout');
+  redirect(`/t/${ctx.team.id}/members?msg=${enc(target ? `${target.name || target.email} is now a ${role}` : 'Could not update that role')}`);
+}
+
 export async function revokeInvite(fd) {
   const ctx = await getTeamCtx(str(fd, 'teamId'));
   if (!ctx.isManager) return;

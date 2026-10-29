@@ -2,6 +2,7 @@ import SubmitButton from "@/components/SubmitButton";
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getTeamCtx } from '@/lib/ctx';
+import DatePicker from '@/components/DatePicker';
 import { STATUS, fmtDate, fmtTime, nameOf } from '@/lib/util';
 import { updateTask, requestReview, reviewDecision, setFollowUp, addNote, deleteTask } from '../../../../actions';
 
@@ -56,7 +57,7 @@ export default async function TaskPage({ params }) {
                   <option value="high">High</option><option value="urgent">Urgent</option>
                 </select>
               </label>
-              <label>Deadline<input type="date" name="deadline" defaultValue={t.deadline || ''} /></label>
+              <label>Deadline<DatePicker name="deadline" label="Deadline" defaultValue={t.deadline || ''} /></label>
             </div>
             <div className="row">
               <label>Status

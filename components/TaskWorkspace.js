@@ -8,6 +8,7 @@ import { STATUS, URGENCY, fmtDate } from '@/lib/util';
 import { addDays, layoutWeek, parseISO, toISO, weekStartOf } from '@/lib/timeline';
 import { defaultAvatar } from '@/lib/avatars';
 import Avatar from './Avatar';
+import DatePicker from './DatePicker';
 
 const COLS = [
   { id: 'todo', label: 'To do', status: 'todo' },
@@ -271,6 +272,7 @@ export default function TaskWorkspace({ teamId, initialTasks, initialFollowups =
         <button className="btn sm" onClick={() => setAnchor(weekStartOf(new Date()))}>Today</button>
         <button className="icon-btn" onClick={() => setAnchor((a) => addDays(a, 7))} aria-label="Next week">›</button>
         <b className="cal-month">{monthLabel}</b>
+        <input type="date" className="cal-goto" aria-label="Jump to date" title="Jump to a date" value="" onChange={(e) => e.target.value && setAnchor(weekStartOf(parseISO(e.target.value)))} />
         <span className="cal-opts">
           <label className="cal-wk"><input type="checkbox" checked={weekend} onChange={(e) => setWeekend(e.target.checked)} /> Weekends</label>
           <select value={weeks} onChange={(e) => setWeeks(Number(e.target.value))} aria-label="Weeks shown">
@@ -562,7 +564,7 @@ function TimelineAdd({ isManager, members, userId, onAdd }) {
   return (
     <form className="cal-addform" onSubmit={(e) => { e.preventDefault(); const t = title.trim(); if (!t) return; onAdd(t, who, date || null); setTitle(''); }}>
       <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" onKeyDown={(e) => e.key === 'Escape' && setOpen(false)} />
-      <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Deadline" />
+      <DatePicker label="Deadline" value={date} onChange={setDate} />
       {isManager && (
         <select value={who} onChange={(e) => setWho(e.target.value)} aria-label="Assign to">
           <option value="team">Whole team</option>
@@ -677,8 +679,8 @@ function TaskSheet({ task: t, teamId, members, isManager, userId, editable, canD
         </div>
 
         <div className="row">
-          {field('Start date', <input type="date" value={t.start_date || ''} disabled={!editable} onChange={(e) => onChange({ start_date: e.target.value })} />)}
-          {field('Deadline', <input type="date" value={t.deadline || ''} disabled={!editable} onChange={(e) => onChange({ deadline: e.target.value })} />)}
+          {field('Start date', <DatePicker label="Start date" value={t.start_date || ''} disabled={!editable} onChange={(v) => onChange({ start_date: v })} />)}
+          {field('Deadline', <DatePicker label="Deadline" value={t.deadline || ''} min={t.start_date || undefined} disabled={!editable} onChange={(v) => onChange({ deadline: v })} />)}
         </div>
 
         {field('Notes', (
@@ -696,7 +698,7 @@ function TaskSheet({ task: t, teamId, members, isManager, userId, editable, canD
               </select>
               <textarea rows="2" value={fuMsg} onChange={(e) => setFuMsg(e.target.value)} placeholder="What should they follow up on? (e.g. Please confirm the BL draft with the shipper)" />
               <div className="row">
-                <label>Reply by <span className="sub">(optional)</span><input type="date" value={fuDue} onChange={(e) => setFuDue(e.target.value)} /></label>
+                <label>Reply by <span className="sub">(optional)</span><DatePicker label="Reply by" value={fuDue} onChange={setFuDue} /></label>
               </div>
               <div className="sheet-actions">
                 <button className="btn primary" disabled={!fuTo} onClick={() => { onAskFollowUp(fuTo, fuMsg, fuDue); setFuOpen(false); setFuMsg(''); setFuDue(''); }}>Send follow-up</button>

@@ -6,14 +6,15 @@ import Avatar from '@/components/Avatar';
 import { defaultAvatar } from '@/lib/avatars';
 import AvatarPicker from '@/components/AvatarPicker';
 import CopyLink from '@/components/CopyLink';
-import { updateTeam, inviteMembers, removeMember, revokeInvite, sendReportNow, deleteTeam, rotateJoinLink, toggleJoinLink } from '../../../actions';
+import { loadMembers } from '@/lib/members';
+import { updateTeam, inviteMembers, removeMember, setMemberRole, revokeInvite, sendReportNow, deleteTeam, rotateJoinLink, toggleJoinLink } from '../../../actions';
 
 export default async function Members({ params, searchParams }) {
   const { teamId } = await params;
   const { msg } = await searchParams;
   const { sb, user, team, isManager } = await getTeamCtx(teamId);
 
-  const { data: members } = await sb.from('tp_members').select('*').eq('team_id', team.id).order('created_at');
+  const members = await loadMembers(sb, team.id);
   const { data: invites } = isManager
     ? await sb.from('tp_invites').select('*').eq('team_id', team.id).is('accepted_at', null).order('created_at', { ascending: false })
     : { data: [] };
@@ -39,6 +40,11 @@ export default async function Members({ params, searchParams }) {
                 <Avatar src={m.avatar || defaultAvatar(m.email)} name={m.name || m.email} size={34} />
                 <span className="t">{m.name || m.email}<div className="sub">{m.email}</div></span>
                 <span className={`tag ${m.role}`}>{m.role}</span>
+                {isManager && (
+                  <form action={setMemberRole}>{hidden}<input type="hidden" name="userId" value={m.user_id} />
+                    <input type="hidden" name="role" value={m.role === 'manager' ? 'member' : 'manager'} />
+                    <SubmitButton className="btn sm" pendingText="Saving…">{m.role === 'manager' ? 'Make member' : 'Make manager'}</SubmitButton></form>
+                )}
                 {isManager && m.user_id !== user.id && (
                   <form action={removeMember}>{hidden}<input type="hidden" name="userId" value={m.user_id} /><SubmitButton className="btn danger sm">Remove</SubmitButton></form>
                 )}

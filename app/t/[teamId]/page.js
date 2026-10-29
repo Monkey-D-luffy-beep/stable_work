@@ -1,17 +1,23 @@
 import Link from 'next/link';
 import { getTeamCtx } from '@/lib/ctx';
 import TaskWorkspace from '@/components/TaskWorkspace';
+import { loadMembers } from '@/lib/members';
+import TeamActivity from '@/components/TeamActivity';
 
 export default async function Tasks({ params, searchParams }) {
   const { teamId } = await params;
   const { welcome } = await searchParams;
   const { sb, user, team, isManager } = await getTeamCtx(teamId);
 
-  const [{ data: tasks }, { data: members }, { data: followups }] = await Promise.all([
+  const [{ data: tasks }, members, { data: followups }] = await Promise.all([
     sb.from('tp_tasks').select('*').eq('team_id', team.id).order('created_at', { ascending: false }).limit(1500),
-    sb.from('tp_members').select('*').eq('team_id', team.id).order('created_at'),
+    loadMembers(sb, team.id),
     sb.from('tp_followups').select('*').eq('team_id', team.id).order('created_at', { ascending: false }).limit(300),
   ]);
+
+  const { data: events } = isManager
+    ? await sb.from('tp_task_events').select('*').eq('team_id', team.id).order('created_at', { ascending: false }).limit(40)
+    : { data: [] };
 
   return (
     <>
@@ -26,9 +32,11 @@ export default async function Tasks({ params, searchParams }) {
       {welcome && <p className="notice">Welcome to {team.name}! Add your first task with “+ Add task”, or open DSR to see the team’s shipments.</p>}
 
       <TaskWorkspace
-        teamId={team.id} initialTasks={tasks || []} initialFollowups={followups || []} members={members || []}
+        teamId={team.id} initialTasks={tasks || []} initialFollowups={followups || []} members={members}
         userId={user.id} isManager={isManager}
       />
+
+      {isManager && <TeamActivity teamId={team.id} events={events || []} tasks={tasks || []} members={members} />}
     </>
   );
 }
