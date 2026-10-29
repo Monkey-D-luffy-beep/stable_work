@@ -20,7 +20,7 @@ const FEATURES = [
 ];
 
 const FAQ = [
-  ['Who can see which tasks?', 'Everyone in a team can see all of the team's tasks in the overview. You can edit your own tasks and ones shared with the whole team, and team leads can edit any task.'],
+  ['Who can see which tasks?', 'Everyone in a team can see all of the team’s tasks in the overview. You can edit your own tasks and ones shared with the whole team, and team leads can edit any task.'],
   ['Can I be in more than one team?', 'Yes. Create a team for each project and switch between them from the sidebar.'],
   ['Can I bring in my existing shipment sheet?', 'Yes. Copy the rows from Excel or Google Sheets, paste them into the DSR import box and they are added in one go. You can export the DSR to CSV at any time.'],
   ['How do invites work?', 'Enter email addresses when creating a team, or later from the Members page. Each person gets a link by email, and you can also copy the link directly.'],
