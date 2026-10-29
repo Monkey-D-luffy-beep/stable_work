@@ -73,6 +73,7 @@ export default function TaskWorkspace({ teamId, initialTasks, initialFollowups =
   };
   const who = (t) => (t.for_team ? 'Whole team' : t.assignee_id ? nameOf(t.assignee_id) : 'Unassigned');
   // Members change only their own tasks (or tasks given to the whole team); managers change anything.
+  const firstName = (t) => (t.for_team ? 'Team' : t.assignee_id ? nameOf(t.assignee_id).split(/[\s@]/)[0] : '');
   const canEdit = (t) => isManager || t.assignee_id === userId || t.for_team;
   const isOver = (t) => !!t.deadline && t.status !== 'done' && t.deadline < today;
   const canDecide = (t) => t.status === 'review' && (isManager || t.reviewer_id === userId);
@@ -216,7 +217,7 @@ export default function TaskWorkspace({ teamId, initialTasks, initialFollowups =
           {t.deadline && <span className={isOver(t) ? 'overdue' : ''}>{fmtDate(t.deadline)}</span>}
           {t.status === 'review' && <span className="status review">In review{t.reviewer_id ? ` · ${nameOf(t.reviewer_id).split(' ')[0]}` : ''}</span>}
           {t.status === 'changes_requested' && <span className="status changes_requested">Changes requested</span>}
-          <span className="kc-av"><Avatar src={t.for_team ? null : avatarOf(t.assignee_id)} name={who(t)} size={26} /></span>
+          <span className="kc-av"><span className="kc-who">{firstName(t)}</span><Avatar src={t.for_team ? null : avatarOf(t.assignee_id)} name={who(t)} size={26} /></span>
         </div>
         {editable && (
           <div className="kc-move" onClick={(e) => e.stopPropagation()}>
@@ -303,6 +304,7 @@ export default function TaskWorkspace({ teamId, initialTasks, initialFollowups =
                     title={`${b.task.title} · ${who(b.task)}${b.task.deadline ? ` · due ${fmtDate(b.task.deadline)}` : ''}`}>
                     {b.contLeft && <span aria-hidden>‹</span>}
                     <span className="tt">{b.task.title}</span>
+                    <span className="tw">{firstName(b.task)}</span>
                     {b.task.status === 'review' && <em>review</em>}
                     {b.contRight && <span aria-hidden>›</span>}
                   </button>

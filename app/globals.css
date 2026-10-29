@@ -606,3 +606,9 @@ table.dsr thead th { position: sticky; top: 0; }
 .lp-head.wide { max-width: 1040px; }
 .lp-head h2.one-line { white-space: nowrap; font-size: clamp(1.3rem, 3.4vw, 2.6rem); }
 .mini form + form { margin-left: 6px; }
+
+/* ---------- assignee first names on cards and bars ---------- */
+.kc-meta .kc-av { align-items: center; gap: 6px; }
+.kc-who { font-size: 12px; font-weight: 500; color: var(--muted); }
+.tbar .tw { flex: none; font-size: 11px; font-weight: 400; opacity: .9; background: rgba(255,255,255,.2); border-radius: 99px; padding: 1px 8px; }
+.tbar .tw:empty { display: none; }
