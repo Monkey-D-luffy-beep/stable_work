@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import SubmitButton from '@/components/SubmitButton';
+import Wordmark from '@/components/Wordmark';
 import { login, signInPassword, signUpPassword } from '../actions';
 
 export default async function Login({ searchParams }) {
@@ -10,7 +11,7 @@ export default async function Login({ searchParams }) {
   return (
     <main className="login">
       <aside className="login-brand">
-        <Link href="/"><img className="brand-logo" src="/logo-white.png" alt="Stableworks" /></Link>
+        <Link href="/"><Wordmark light className="brand-logo" /></Link>
         <div>
           <h2>Every project, <em>on course.</em></h2>
           <p>Plan the work, assign it, review it and keep the full history in one place.</p>

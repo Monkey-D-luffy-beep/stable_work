@@ -2,6 +2,7 @@ import SubmitButton from "@/components/SubmitButton";
 import Link from 'next/link';
 import { getTeamCtx } from '@/lib/ctx';
 import TeamAvatar from '@/components/TeamAvatar';
+import Wordmark from '@/components/Wordmark';
 import Avatar from '@/components/Avatar';
 import { defaultAvatar } from '@/lib/avatars';
 import { logout } from '../../actions';
@@ -21,7 +22,7 @@ export default async function TeamLayout({ children, params }) {
   return (
     <div className="app">
       <aside className="sidebar">
-        <Link href="/"><img className="logo" src="/logo.png" alt="Stableworks" /></Link>
+        <Link href="/"><Wordmark className="logo" /></Link>
         <div className="side-head"><span>Teams</span><Link href="/teams/new" className="icon-btn" title="New team">+</Link></div>
         <div className="projects">
           {teams.map((m) => (
@@ -33,7 +34,6 @@ export default async function TeamLayout({ children, params }) {
         </div>
         <div className="side-head" style={{ marginTop: 22 }}><span>{team.name}</span><span className={`tag ${isManager ? 'manager' : 'member'}`}>{isManager ? 'manager' : 'member'}</span></div>
         <nav className="nav">
-          <Link className="nav-item" href={`/t/${team.id}/dsr`}>DSR</Link>
           <Link className="nav-item" href={`/t/${team.id}`}>Tasks{pending > 0 && <i className="nav-badge" title="Reviews and follow-ups waiting">{pending}</i>}</Link>
           <Link className="nav-item" href={`/t/${team.id}/members`}>{isManager ? 'Members & settings' : 'Members'}</Link>
         </nav>

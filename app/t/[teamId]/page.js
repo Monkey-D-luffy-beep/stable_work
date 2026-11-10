@@ -29,7 +29,7 @@ export default async function Tasks({ params, searchParams }) {
         {isManager && <Link href={`/t/${team.id}/members#invite`} className="btn primary topbar-cta">+ Invite people</Link>}
       </header>
 
-      {welcome && <p className="notice">Welcome to {team.name}! Add your first task with “+ Add task”, or open DSR to see the team’s shipments.</p>}
+      {welcome && <p className="notice">Welcome to {team.name}! Add your first task with “+ Add task”.</p>}
 
       <TaskWorkspace
         teamId={team.id} initialTasks={tasks || []} initialFollowups={followups || []} members={members}

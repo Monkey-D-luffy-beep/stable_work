@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Wordmark from './Wordmark';
 
 const ICONS = {
   users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
@@ -22,9 +23,8 @@ const FEATURES = [
 const FAQ = [
   ['Who can see which tasks?', 'Everyone in a team can see all of the team’s tasks in the overview. You can edit your own tasks and ones shared with the whole team, and team leads can edit any task.'],
   ['Can I be in more than one team?', 'Yes. Create a team for each project and switch between them from the sidebar.'],
-  ['Can I bring in my existing shipment sheet?', 'Yes. Copy the rows from Excel or Google Sheets, paste them into the DSR import box and they are added in one go. You can export the DSR to CSV at any time.'],
   ['How do invites work?', 'Enter email addresses when creating a team, or later from the Members page. Each person gets a link by email, and you can also copy the link directly.'],
-  ['What reports are sent?', 'A weekly report goes out every Monday and a monthly report on the 1st, summarising what was completed, what is overdue, what is waiting for review and where your shipments stand.'],
+  ['What reports are sent?', 'A weekly report goes out every Monday and a monthly report on the 1st, summarising what was completed, what is overdue and what is waiting for review.'],
   ['Is task history kept?', 'Yes. Every update, note, review decision and follow-up is stored on the task with the person and time.'],
 ];
 
@@ -33,9 +33,9 @@ export default function Landing() {
     <div className="lp">
       <header className="lp-nav">
         <div className="lp-wrap">
-          <Link href="/"><img src="/logo.png" alt="Stableworks" /></Link>
+          <Link href="/"><Wordmark /></Link>
           <nav className="lp-links">
-            <a href="#dsr">DSR</a><a href="#features">Features</a><a href="#how">How it works</a><a href="#reports">Reports</a><a href="#faq">FAQ</a>
+            <a href="#features">Features</a><a href="#how">How it works</a><a href="#reports">Reports</a><a href="#faq">FAQ</a>
           </nav>
           <div className="cta">
             <Link href="/login" className="btn">Sign in</Link>
@@ -49,7 +49,7 @@ export default function Landing() {
           <div>
             <span className="eyebrow">Task management for Tiger Logistics teams</span>
             <h1>Every task, every team, <em>one clear view.</em></h1>
-            <p className="lp-lead">Track every shipment in your DSR, assign work, set urgency and deadlines, ask for reviews and keep a full history. Weekly reports land in your inbox automatically.</p>
+            <p className="lp-lead">Assign work, set urgency and deadlines, ask for reviews and keep a full history. Weekly reports land in your inbox automatically.</p>
             <div className="lp-btns">
               <Link href="/login" className="btn primary">Start with your team</Link>
               <a href="#how" className="btn">See how it works</a>
@@ -78,36 +78,6 @@ export default function Landing() {
                   <span className="who">{w}</span>
                 </div>
               ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="lp-sec alt" id="dsr">
-        <div className="lp-wrap">
-          <div className="lp-head wide">
-            <h2 className="one-line">Your Daily Shipment Report, built in</h2>
-            <p>Keep every shipment in one live table: MBL and HBL, ports, ETD and ETA, BRO status and job status. Search it in a blink, import your existing sheet and export it whenever you need.</p>
-          </div>
-          <div className="mock dsr-mock" aria-label="Sample DSR table">
-            <div className="mock-bar"><i /><i /><i /><span>DSR · sample</span></div>
-            <div className="dsr-wrap">
-              <table className="dsr">
-                <thead><tr><th>TRL NO</th><th>SHIPPER</th><th>LINE</th><th>MBL</th><th>HBL</th><th>POL</th><th>POD</th><th>ETD</th><th>ETA</th><th>BRO</th><th>JOB STATUS</th></tr></thead>
-                <tbody>
-                  {[
-                    ['1041', 'Northwind Exports', 'MSC', 'MSCU1234501', 'HB-0101-A', 'Nhava Sheva', 'Rotterdam', '4 Mar', '28 Mar', 'RECEIVED', 'IN TRANSIT', 'go'],
-                    ['1042', 'Contoso Textiles', 'MAERSK', 'MAEU7788122', 'HB-0102-A', 'Mundra', 'Jebel Ali', '6 Mar', '14 Mar', 'NOT RECEIVED', 'JOB OPEN', 'go'],
-                    ['1043', 'Fabrikam Auto Parts', 'CMA CGM', 'CMDU5566340', 'HB-0103-B', 'Chennai', 'Singapore', '1 Mar', '9 Mar', 'RECEIVED', 'JOB CLOSED', 'ok'],
-                  ].map((r) => (
-                    <tr key={r[0]}>
-                      {r.slice(0, 9).map((c, i) => <td key={i}>{c}</td>)}
-                      <td><span className={`jobs ${r[9] === 'RECEIVED' ? 'ok' : 'wait'}`}>{r[9]}</span></td>
-                      <td><span className={`jobs ${r[11]}`}>{r[10]}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         </div>
@@ -175,7 +145,7 @@ export default function Landing() {
 
       <footer className="lp-foot">
         <div className="lp-wrap">
-          <img className="foot-logo" src="/logo-white.png" alt="Stableworks" />
+          <Wordmark light className="foot-logo" />
           <nav><a href="#features">Features</a><a href="#how">How it works</a><a href="#reports">Reports</a><a href="#faq">FAQ</a><Link href="/login">Sign in</Link></nav>
           <small>© {new Date().getFullYear()} Stableworks. All rights reserved.</small>
         </div>

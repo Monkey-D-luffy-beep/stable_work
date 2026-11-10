@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { admin } from '@/lib/admin';
 import { supabaseServer } from '@/lib/supabase/server';
 import TeamAvatar from '@/components/TeamAvatar';
+import Wordmark from '@/components/Wordmark';
 import SubmitButton from '@/components/SubmitButton';
 import AvatarChooser from '@/components/AvatarChooser';
 import { joinWithNewAccount, joinAsCurrentUser } from '../../actions';
@@ -20,7 +21,7 @@ export default async function JoinPage({ params, searchParams }) {
     return (
       <main className="login-form" style={{ minHeight: '100vh' }}>
         <div className="login-box">
-          <img src="/logo.png" alt="Stableworks" className="auth-logo" />
+          <Wordmark className="auth-logo" />
           <h1>This link isn’t active</h1>
           <p className="sub">The invite link may have been replaced or turned off. Ask your team manager for a new one.</p>
           <Link href="/login" className="btn">Go to sign in</Link>
@@ -40,7 +41,7 @@ export default async function JoinPage({ params, searchParams }) {
   return (
     <main className="login">
       <aside className="login-brand">
-        <Link href="/"><img className="brand-logo" src="/logo-white.png" alt="Stableworks" /></Link>
+        <Link href="/"><Wordmark light className="brand-logo" /></Link>
         <div>
           <div className="join-team"><TeamAvatar team={team} size={72} /></div>
           <h2>Join <em>{team.name}</em></h2>

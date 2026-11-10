@@ -4,6 +4,7 @@ import { getMyTeams } from '@/lib/ctx';
 import TeamAvatar from '@/components/TeamAvatar';
 import Landing from '@/components/Landing';
 import SubmitButton from '@/components/SubmitButton';
+import Wordmark from '@/components/Wordmark';
 import { logout } from './actions';
 
 export default async function Home({ searchParams }) {
@@ -16,7 +17,7 @@ export default async function Home({ searchParams }) {
   return (
     <main className="wrap">
       <header className="home-head">
-        <img src="/logo.png" alt="Stableworks" className="auth-logo" />
+        <Wordmark className="auth-logo" />
         <Link href="/profile" className="sub">{user.email} · <b>Profile</b></Link>
         <form action={logout}><SubmitButton className="btn">Sign out</SubmitButton></form>
       </header>

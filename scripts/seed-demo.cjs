@@ -1,7 +1,7 @@
-// Demo data: one sample team of 5 people with realistic freight-forwarding tasks and DSR shipments.
+// Demo data: one sample team of 5 people with realistic freight-forwarding tasks.
 //   node --env-file=.env.local scripts/seed-demo.cjs            create the demo team
 //   node --env-file=.env.local scripts/seed-demo.cjs --remove   delete the demo team and its demo people
-// All people, companies and shipments are fictional. The demo people use @example.com addresses and random
+// All people and companies are fictional. The demo people use @example.com addresses and random
 // passwords nobody knows, so they can never be signed in to.
 const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
@@ -40,7 +40,7 @@ async function remove() {
   const users = await allUsers();
   const owner = users.find((u) => u.email?.toLowerCase() === OWNER);
   const { data: teams } = await db.from('tp_teams').select('id').in('name', OLD_NAMES).eq('created_by', owner?.id).like('description', `${SAMPLE_DESC}%`);
-  for (const t of teams || []) await db.from('tp_teams').delete().eq('id', t.id);   // cascades members, tasks, history, shipments
+  for (const t of teams || []) await db.from('tp_teams').delete().eq('id', t.id);   // cascades members, tasks, history
   const demo = users.filter((u) => u.user_metadata?.demo === true && /^demo\..+@example\.com$/.test(u.email || ''));
   for (const u of demo) { await db.from('profiles').delete().eq('id', u.id); await db.auth.admin.deleteUser(u.id); }
   console.log(`removed ${teams?.length || 0} demo team(s) and ${demo.length} demo people`);
@@ -60,7 +60,6 @@ async function create() {
     note: await hasColumn('tp_tasks', 'review_note'),
     avatar: await hasColumn('tp_members', 'avatar'),
     join: await hasColumn('tp_teams', 'join_token'),
-    ship: await hasColumn('tp_shipments', 'id'),
   };
 
   // --- people (four demo accounts + you) ---
@@ -151,30 +150,8 @@ async function create() {
   const { error: ee } = await db.from('tp_task_events').insert(events);
   if (ee) throw ee;
 
-  // --- DSR shipments (fictional) ---
-  let shipments = 0;
-  if (cols.ship) {
-    const S = [
-      ['1041', 'Northwind Exports Pvt Ltd', 'MSC', 'MSCU4401201', 'HBL-0101-A', 'SEA', 4, '40HQ', 'Nhava Sheva', 'Rotterdam', 'Rotterdam', -6, 18, 'YES', 'RECEIVED', 'IN TRANSIT'],
-      ['1042', 'Contoso Textiles Ltd', 'MAERSK', 'MAEU7788122', 'HBL-0102-A', 'SEA', 2, '20GP', 'Mundra', 'Jebel Ali', 'Jebel Ali', -3, 4, 'YES', 'NOT RECEIVED', 'IN TRANSIT'],
-      ['1043', 'Fabrikam Auto Parts', 'CMA CGM', 'CMDU5566340', 'HBL-0103-B', 'SEA', 1, '40HQ', 'Chennai', 'Singapore', 'Singapore', -12, -4, 'YES', 'RECEIVED', 'JOB CLOSED'],
-      ['1044', 'Adventure Works Cycles', 'HAPAG-LLOYD', 'HLCU2290917', 'HBL-0104-A', 'SEA', 3, '40HQ', 'Nhava Sheva', 'Hamburg', 'Hamburg', 5, 27, 'NO', null, 'JOB OPEN'],
-      ['1045', 'Tailspin Electronics', 'ONE', 'ONEY8812004', 'HBL-0105-A', 'SEA', 5, '20GP', 'Kolkata', 'Colombo', 'Colombo', -2, 6, 'YES', 'NOT RECEIVED', 'IN TRANSIT'],
-      ['1046', 'Litware Pharma', 'QATAR AIRWAYS CARGO', 'QR-157-4410', 'HAWB-77-12', 'AIR', null, 'KGS', 'Delhi', 'Doha', 'London', 1, 3, 'YES', 'RECEIVED', 'JOB OPEN'],
-      ['1047', 'Woodgrove Foods', 'MSC', 'MSCU6612093', 'HBL-0107-A', 'SEA', 2, '40RF', 'Tuticorin', 'Port Klang', 'Port Klang', -9, -1, 'YES', 'RECEIVED', 'ARRIVED'],
-      ['1048', 'Proseware Furniture', 'EVERGREEN', 'EGLV1450388', 'HBL-0108-A', 'SEA', 6, '40HQ', 'Mundra', 'Felixstowe', 'Felixstowe', 8, 30, 'NO', null, 'JOB OPEN'],
-    ];
-    const rows = S.map(([trl, shipper, line, mbl, hbl, type, qty, ctype, pol, pod, fpod, etd, eta, bro, broRec, job], i) => ({
-      team_id: team.id, trl_no: trl, shipper_name: shipper, shipping_line: line, mbl, hbl, shipment_type: type, cntr_qnty: qty, cntr_type: ctype,
-      pol, pod, fpod, etd: iso(etd), eta: iso(eta), bro, bro_received: broRec, job_status: job, created_by: ids.me, created_at: ts(-14 + i),
-    }));
-    const { error: se } = await db.from('tp_shipments').insert(rows);
-    if (se) throw se;
-    shipments = rows.length;
-  }
-
   console.log(JSON.stringify({
-    team: team.id, people: 5, tasks: tasks.length, events: events.length, shipments,
+    team: team.id, people: 5, tasks: tasks.length, events: events.length,
     note: [!cols.reviewer && 'run supabase/review-timeline.sql, then re-seed, to get reviewers and start dates', !cols.avatar && 'run supabase/avatars.sql for pictures'].filter(Boolean),
   }, null, 2));
 }
