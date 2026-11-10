@@ -605,9 +605,11 @@ tr.leaving { animation: rowOut .25s ease forwards; pointer-events: none; }
 
 .team-now { margin-bottom: 4px; }
 .who-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
-.who-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; }
+.who-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; min-width: 0; }
 .who-head { display: flex; align-items: center; gap: 8px; }
-.who-tasks { display: grid; gap: 6px; }
-.who-task { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; font: inherit; font-size: 13px; cursor: pointer; background: var(--bg); border: 1px solid transparent; border-radius: 8px; padding: 6px 8px; }
+.who-tasks { display: grid; gap: 6px; min-width: 0; }
+.who-task { display: flex; align-items: flex-start; gap: 8px; width: 100%; text-align: left; font: inherit; font-size: 13px; cursor: pointer; background: var(--bg); border: 1px solid transparent; border-radius: 8px; padding: 6px 8px; min-width: 0; }
 .who-task:hover { border-color: var(--lav); }
-.who-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who-task .tag { margin-top: 1px; flex: none; }
+/* Long titles wrap instead of truncating, like task cards elsewhere; min-width: 0 lets a flex/grid child shrink below its text's natural width so it wraps instead of forcing the card wider. */
+.who-title { flex: 1; min-width: 0; word-break: break-word; }
