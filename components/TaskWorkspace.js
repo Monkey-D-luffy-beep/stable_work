@@ -229,12 +229,21 @@ export default function TaskWorkspace({ teamId, initialTasks, initialFollowups =
     );
   };
 
+  // Done cards older than a week move off the board automatically, so it stays uncluttered.
+  // They are never deleted — "View archive" opens them in List, grouped by the week they were finished.
   const board = (
     <div className="kb">
       {COLS.map((col) => {
         let items = visible.filter((t) => colOf(t.status) === col.id);
-        items = col.id === 'done' ? items.sort((a, b) => (b.completed_at || '').localeCompare(a.completed_at || '')) : items.sort(byUrgency);
-        const shown = col.id === 'done' ? items.slice(0, 30) : items;
+        let archived = 0;
+        if (col.id === 'done') {
+          const all = items;
+          items = all.filter((t) => ageDays(t.completed_at) < 7).sort((a, b) => (b.completed_at || '').localeCompare(a.completed_at || ''));
+          archived = all.length - items.length;
+        } else {
+          items = items.sort(byUrgency);
+        }
+        const shown = col.id === 'done' ? items.slice(0, 20) : items;
         return (
           <div key={col.id} className={`kb-col ${over === col.id ? 'over' : ''}`}
             onDragOver={(e) => { e.preventDefault(); setOver(col.id); }}
@@ -242,7 +251,12 @@ export default function TaskWorkspace({ teamId, initialTasks, initialFollowups =
             onDrop={(e) => { e.preventDefault(); setOver(null); const t = tasks.find((x) => x.id === e.dataTransfer.getData('text/plain')); if (t) moveTo(t, col.id); }}>
             <div className="kb-head"><span className={`dot c-${col.id}`} />{col.label}<span className="n">{items.length}</span></div>
             <div className="kb-list">{shown.map(card)}</div>
-            {items.length > shown.length && <p className="sub kb-more">+ {items.length - shown.length} older completed</p>}
+            {items.length > shown.length && <p className="sub kb-more">+ {items.length - shown.length} more this week</p>}
+            {archived > 0 && (
+              <button type="button" className="kb-archive" onClick={() => { changeView('list'); setScope('done'); }}>
+                {archived} completed earlier · View archive
+              </button>
+            )}
             <QuickAdd isManager={isManager} members={members} userId={userId}
               defaultAssignee={['all', 'me'].includes(person) ? (isManager ? (person === 'me' ? userId : 'team') : '') : person}
               onAdd={(title, assignee) => add(title, col.id, assignee)} />
@@ -416,10 +430,47 @@ export default function TaskWorkspace({ teamId, initialTasks, initialFollowups =
     ].filter((g) => g.tasks.length);
   }, [tasks, userId, today, myReviews]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Manager-only: who has something in progress right now, one group per person, so it is clear
+  // at a glance who is working on what — and who has nothing moving.
+  const workingNow = useMemo(() => {
+    if (!isManager) return [];
+    return members.map((m) => ({
+      member: m,
+      tasks: tasks.filter((t) => t.status === 'in_progress' && !t.pending && !t.for_team && t.assignee_id === m.user_id)
+        .sort((a, b) => URGENCY[a.urgency] - URGENCY[b.urgency] || (a.deadline || '9999').localeCompare(b.deadline || '9999')),
+    }));
+  }, [isManager, members, tasks]);
+
+  const teamNowSection = isManager && (
+    <section className="fc-group team-now">
+      <header className="tl-head"><h3>Team: working on right now</h3><span className="n">{workingNow.reduce((n, p) => n + p.tasks.length, 0)}</span></header>
+      <div className="who-grid">
+        {workingNow.map(({ member: m, tasks: pts }) => (
+          <div key={m.user_id} className="who-card">
+            <div className="who-head"><Avatar src={m.avatar || defaultAvatar(m.email)} name={m.name || m.email} size={26} /><b>{(m.name || m.email).split(/[\s@]/)[0]}</b></div>
+            {pts.length === 0 ? <p className="sub">Nothing in progress</p> : (
+              <div className="who-tasks">
+                {pts.map((t) => (
+                  <button key={t.id} type="button" className="who-task" onClick={() => setOpenId(t.id)}>
+                    <span className={`tag ${t.urgency}`}>{t.urgency}</span><span className="who-title">{t.title}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+
   const focusView = focusGroups.length === 0 ? (
-    <div className="panel empty">Nothing needs you right now. 🎉<br /><span className="sub">Use the Board to see the whole team, or add a task.</span></div>
+    <div className="fc">
+      {teamNowSection}
+      <div className="panel empty">Nothing needs you right now. 🎉<br /><span className="sub">Use the Board to see the whole team, or add a task.</span></div>
+    </div>
   ) : (
     <div className="fc">
+      {teamNowSection}
       {focusGroups.map((g) => (
         <section key={g.key} className={`fc-group ${g.tone}`}>
           <header className="tl-head"><h3>{g.label}</h3><span className="n">{g.tasks.length}</span></header>
@@ -450,7 +501,47 @@ export default function TaskWorkspace({ teamId, initialTasks, initialFollowups =
     </div>
   );
 
-  const listView = listed.length === 0 ? <div className="panel empty">Nothing to show for these filters.</div> : (
+  // Archive: completed work, grouped by the Monday-start week it was finished in, newest week first.
+  const weekLabel = (wkIso) => {
+    const start = parseISO(wkIso);
+    const range = `${short(start)} – ${short(addDays(start, 6))}`;
+    if (wkIso === toISO(weekStartOf(new Date()))) return `This week · ${range}`;
+    if (wkIso === toISO(addDays(weekStartOf(new Date()), -7))) return `Last week · ${range}`;
+    return range;
+  };
+  const archiveGroups = useMemo(() => {
+    if (!(view === 'list' && scope === 'done')) return null;
+    const map = new Map();
+    for (const t of listed) {
+      if (!t.completed_at) continue;
+      const wk = toISO(weekStartOf(new Date(t.completed_at)));
+      if (!map.has(wk)) map.set(wk, []);
+      map.get(wk).push(t);
+    }
+    return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([weekStart, items]) => ({ weekStart, items: items.sort((a, b) => (b.completed_at || '').localeCompare(a.completed_at || '')) }));
+  }, [listed, view, scope]);
+
+  const listView = listed.length === 0 ? <div className="panel empty">Nothing to show for these filters.</div> : archiveGroups ? (
+    <div className="fc">
+      {archiveGroups.map((g) => (
+        <section key={g.weekStart} className="fc-group">
+          <header className="tl-head"><h3>{weekLabel(g.weekStart)}</h3><span className="n">{g.items.length}</span></header>
+          <div className="fc-rows">
+            {g.items.map((t) => (
+              <button key={t.id} type="button" className="fc-row u-low arc-row" onClick={() => setOpenId(t.id)}>
+                <span className="arc-main">
+                  <span className="fc-title">{t.title}</span>
+                  <span className="fc-meta"><span className={`tag ${t.urgency}`}>{t.urgency}</span><span className="sub">{who(t)}</span></span>
+                </span>
+                <span className="sub arc-date">{fmtDate(t.completed_at.slice(0, 10))}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  ) : (
     <table>
       <thead><tr><th>Task</th><th>Urgency</th><th>Deadline</th><th>Assigned to</th><th>Status</th></tr></thead>
       <tbody>

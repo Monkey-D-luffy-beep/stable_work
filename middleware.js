@@ -32,6 +32,7 @@ export async function middleware(req) {
 }
 
 export const config = {
-  // Skip framework files and every static image so logos/icons load for signed-out visitors too.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp|gif)$).*)'],
+  // Skip framework files, every static image, and the PWA files (manifest + service worker),
+  // so icons, "Add to Home Screen" and install all work for signed-out visitors too.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.webmanifest|.*\\.(?:png|jpg|jpeg|svg|ico|webp|gif)$).*)'],
 };

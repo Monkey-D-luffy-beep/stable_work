@@ -5,6 +5,7 @@ import TeamAvatar from '@/components/TeamAvatar';
 import Wordmark from '@/components/Wordmark';
 import Avatar from '@/components/Avatar';
 import { defaultAvatar } from '@/lib/avatars';
+import InstallButton from '@/components/InstallButton';
 import { logout } from '../../actions';
 
 export default async function TeamLayout({ children, params }) {
@@ -38,6 +39,7 @@ export default async function TeamLayout({ children, params }) {
           <Link className="nav-item" href={`/t/${team.id}/members`}>{isManager ? 'Members & settings' : 'Members'}</Link>
         </nav>
         <Link href="/profile" className="me-chip"><Avatar src={avatar || defaultAvatar(user.email)} name={name} size={32} /><span><b>{name}</b><small>Edit profile</small></span></Link>
+        <InstallButton className="btn" />
         <form action={logout} style={{ marginTop: 12 }}><SubmitButton className="btn">Sign out</SubmitButton></form>
       </aside>
       <main className="main">{children}</main>

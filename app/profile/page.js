@@ -4,6 +4,7 @@ import { defaultAvatar } from '@/lib/avatars';
 import Avatar from '@/components/Avatar';
 import AvatarChooser from '@/components/AvatarChooser';
 import SubmitButton from '@/components/SubmitButton';
+import InstallButton from '@/components/InstallButton';
 import { updateProfile } from '../actions';
 
 export const metadata = { title: 'Your profile · Stableworks' };
@@ -31,6 +32,13 @@ export default async function Profile({ searchParams }) {
         <AvatarChooser defaultValue={avatar} />
         <SubmitButton className="btn primary" pendingText="Saving…">Save profile</SubmitButton>
       </form>
+
+      <section className="panel stack">
+        <h3>Use it on your phone</h3>
+        <p className="sub">iPhone: open this site in Safari, tap Share, then “Add to Home Screen”.</p>
+        <p className="sub">Android / desktop Chrome: tap the button below.</p>
+        <InstallButton className="btn" />
+      </section>
     </main>
   );
 }
