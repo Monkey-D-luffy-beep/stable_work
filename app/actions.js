@@ -565,6 +565,20 @@ export async function updateProfile(fd) {
   redirect(`/profile?msg=${enc(r.error ? 'Saved your name. Run supabase/avatars.sql to switch on pictures everywhere.' : 'Profile updated')}`);
 }
 
+// Changes the signed-in person's own password. No old password needed: they are already signed in,
+// the same as finishing a password-reset link.
+export async function changePassword(fd) {
+  const { sb } = await getUser();
+  const password = (fd.get('password') || '').toString();
+  const confirm = (fd.get('confirm') || '').toString();
+  const fail = (m) => redirect(`/profile?err=${enc(m)}`);
+  if (password.length < 8) fail('Password must be at least 8 characters');
+  if (password !== confirm) fail('Those two passwords don’t match');
+  const { error } = await sb.auth.updateUser({ password });
+  if (error) fail(error.message);
+  redirect(`/profile?msg=${enc('Password changed')}`);
+}
+
 /* ---------- reviews: pick a reviewer, then approve or send back with feedback ---------- */
 
 // Runs an update; if the review columns have not been added yet, retries without them.

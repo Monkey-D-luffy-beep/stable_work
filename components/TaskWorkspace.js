@@ -509,34 +509,58 @@ export default function TaskWorkspace({ teamId, initialTasks, initialFollowups =
     if (wkIso === toISO(addDays(weekStartOf(new Date()), -7))) return `Last week · ${range}`;
     return range;
   };
+  // Within each week, group by who did the work, so it reads as "who finished what" rather than one long list.
   const archiveGroups = useMemo(() => {
     if (!(view === 'list' && scope === 'done')) return null;
-    const map = new Map();
+    const weeks = new Map();
     for (const t of listed) {
       if (!t.completed_at) continue;
       const wk = toISO(weekStartOf(new Date(t.completed_at)));
-      if (!map.has(wk)) map.set(wk, []);
-      map.get(wk).push(t);
+      if (!weeks.has(wk)) weeks.set(wk, new Map());
+      const byPerson = weeks.get(wk);
+      const key = t.for_team ? 'team' : t.assignee_id || 'unassigned';
+      if (!byPerson.has(key)) byPerson.set(key, []);
+      byPerson.get(key).push(t);
     }
-    return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([weekStart, items]) => ({ weekStart, items: items.sort((a, b) => (b.completed_at || '').localeCompare(a.completed_at || '')) }));
-  }, [listed, view, scope]);
+    const personLabel = (key) => (key === 'team' ? 'Whole team' : key === 'unassigned' ? 'Unassigned' : nameOf(key));
+    return [...weeks.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([weekStart, byPerson]) => ({
+      weekStart,
+      total: [...byPerson.values()].reduce((n, items) => n + items.length, 0),
+      people: [...byPerson.entries()]
+        .map(([key, items]) => ({ key, items: items.sort((a, b) => (b.completed_at || '').localeCompare(a.completed_at || '')) }))
+        .sort((a, b) => personLabel(a.key).localeCompare(personLabel(b.key))),
+    }));
+  }, [listed, view, scope]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const listView = listed.length === 0 ? <div className="panel empty">Nothing to show for these filters.</div> : archiveGroups ? (
     <div className="fc">
       {archiveGroups.map((g) => (
         <section key={g.weekStart} className="fc-group">
-          <header className="tl-head"><h3>{weekLabel(g.weekStart)}</h3><span className="n">{g.items.length}</span></header>
-          <div className="fc-rows">
-            {g.items.map((t) => (
-              <button key={t.id} type="button" className="fc-row u-low arc-row" onClick={() => setOpenId(t.id)}>
-                <span className="arc-main">
-                  <span className="fc-title">{t.title}</span>
-                  <span className="fc-meta"><span className={`tag ${t.urgency}`}>{t.urgency}</span><span className="sub">{who(t)}</span></span>
-                </span>
-                <span className="sub arc-date">{fmtDate(t.completed_at.slice(0, 10))}</span>
-              </button>
-            ))}
+          <header className="tl-head"><h3>{weekLabel(g.weekStart)}</h3><span className="n">{g.total}</span></header>
+          <div className="arc-people">
+            {g.people.map(({ key, items }) => {
+              const m = key !== 'team' && key !== 'unassigned' ? memberOf(key) : null;
+              const label = key === 'team' ? 'Whole team' : key === 'unassigned' ? 'Unassigned' : m?.name || m?.email || 'Unassigned';
+              return (
+                <div key={key} className="arc-person">
+                  <div className="arc-person-head">
+                    {key !== 'team' && <Avatar src={m?.avatar || defaultAvatar(m?.email)} name={label} size={24} />}
+                    <b>{label}</b><span className="sub">{items.length}</span>
+                  </div>
+                  <div className="fc-rows">
+                    {items.map((t) => (
+                      <button key={t.id} type="button" className="fc-row u-low arc-row" onClick={() => setOpenId(t.id)}>
+                        <span className="arc-main">
+                          <span className="fc-title">{t.title}</span>
+                          <span className="fc-meta"><span className={`tag ${t.urgency}`}>{t.urgency}</span></span>
+                        </span>
+                        <span className="sub arc-date">{fmtDate(t.completed_at.slice(0, 10))}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
       ))}

@@ -613,3 +613,9 @@ tr.leaving { animation: rowOut .25s ease forwards; pointer-events: none; }
 .who-task .tag { margin-top: 1px; flex: none; }
 /* Long titles wrap instead of truncating, like task cards elsewhere; min-width: 0 lets a flex/grid child shrink below its text's natural width so it wraps instead of forcing the card wider. */
 .who-title { flex: 1; min-width: 0; word-break: break-word; }
+
+/* ---------- archive grouped by person (List > Done) ---------- */
+.arc-people { display: grid; gap: 18px; }
+.arc-person-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.arc-person-head b { font-size: 14px; }
+.arc-person-head .sub { margin-left: auto; }
